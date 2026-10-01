@@ -40,6 +40,7 @@ alter table businesses add column if not exists price_range text not null defaul
 alter table businesses add column if not exists site_text text not null default '';
 alter table businesses add column if not exists last_discovery_at timestamptz;
 alter table businesses add column if not exists site_fetched_at timestamptz;
+alter table businesses add column if not exists site_signals text not null default '';
 create table if not exists campaigns (
   id uuid primary key,
   user_id uuid not null references users(id) on delete cascade,
@@ -54,6 +55,7 @@ create table if not exists campaigns (
   launched_at timestamptz
 );
 create index if not exists campaigns_user_idx on campaigns(user_id, created_at desc);
+alter table campaigns add column if not exists brief text not null default '';
 create table if not exists chat_messages (
   id bigserial primary key,
   user_id uuid not null references users(id) on delete cascade,

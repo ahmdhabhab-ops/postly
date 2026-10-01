@@ -15,6 +15,12 @@ Publishing to ad platforms (Meta/Google/TikTok) and OAuth channel connections ar
 Competitor discovery runs on a cheaper model (`ANTHROPIC_SEARCH_MODEL`, default Haiku 4.5), at most once per 24h per user (operators in `ADMIN_EMAILS` are exempt; a failed call does not use the slot). It needs `ANTHROPIC_API_KEY` and web search enabled for your organisation in the Anthropic Console.
 The assistant uses Claude when `ANTHROPIC_API_KEY` is set, otherwise simple built-in replies.
 
+## Campaign plans and website check
+Each drafted campaign gets a full plan (objective, ages, interests, placements, creative ideas, copy, KPIs). Where the owner gave no
+details, the AI suggests them and lists them as assumptions. The owner's website is checked by code (HTTPS, mobile viewport, contact path,
+Meta Pixel, amount of content); problems are shown on the campaign and given to the assistant, with a pointer to `WEBSITE_HELP_NAME` /
+`WEBSITE_HELP_URL` (default Hostbotics). "Copy plan" lets the client create the ad manually until the Meta integration exists.
+
 ## Deploy (Dokploy)
 Compose path `./docker-compose.yml`; put the variables from `.env.example` in the Environment tab
 (`DB_PASSWORD` is required). Domains tab: service `web`, port `3000`.

@@ -13,6 +13,7 @@ import { assistantReply, detectCampaignRequest, buildAssistantContext } from './
 import { fetchPublicPage, parsePublicUrl, FetchBlockedError } from './safefetch.js';
 import { analyzeCompetitor, buildStats, writeReport, discoverCompetitors } from './insights.js';
 import { extractPage } from './safefetch.js';
+import { generateBrief, siteSignals, websiteNotes, sanitizeBrief } from './brief.js';
 
 const EMAIL = /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/;
 const CHANNELS = ['Instagram', 'Facebook', 'Meta Ads', 'TikTok', 'Google Business Profile', 'ChatGPT Ads', 'WhatsApp'];
@@ -127,7 +128,7 @@ export function createApp(cfg, { pool, wa = createWhatsAppClient(cfg.whatsapp), 
   async function meResponse(userId) {
     const u = (await pool.query('select id,email,first_name,last_name,phone from users where id=$1', [userId])).rows[0];
     const business = (await pool.query('select * from businesses where user_id=$1', [userId])).rows[0] ?? null;
-    if (business) { delete business.site_text; delete business.last_discovery_at; delete business.site_fetched_at; } // internal cache of the user's own site text
+    if (business) { delete business.site_text; delete business.last_discovery_at; delete business.site_fetched_at; delete business.site_signals; } // internal cache of the user's own site text
     return { user: { id: u.id, email: u.email, firstName: u.first_name, lastName: u.last_name, phone: u.phone, canSendWhatsApp: isAdmin(u.email) }, business };
   }
   const isAdmin = (email) => cfg.adminEmails.includes(String(email).toLowerCase());
@@ -158,9 +159,21 @@ export function createApp(cfg, { pool, wa = createWhatsAppClient(cfg.whatsapp), 
   // --- campaigns ---
   api.get('/campaigns', requireUser, wrap(async (req, res) => {
     const { rows } = await pool.query('select * from campaigns where user_id=$1 order by created_at desc limit 100', [req.user.id]);
-    res.json({ campaigns: rows });
+    const b = (await pool.query('select * from businesses where user_id=$1', [req.user.id])).rows[0];
+    res.json({ campaigns: rows.map((r) => campaignOut(r, b)) });
   }));
 
+  api.post('/campaigns/:id/plan', requireUser, aiLimiter, wrap(async (req, res) => {
+    if (!/^[0-9a-f-]{36}$/.test(req.params.id)) return res.status(404).json({ error: 'Not found' });
+    const c = (await pool.query('select * from campaigns where id=$1 and user_id=$2', [req.params.id, req.user.id])).rows[0];
+    if (!c) return res.status(404).json({ error: 'Not found' });
+    const business = (await pool.query('select * from businesses where user_id=$1', [req.user.id])).rows[0];
+    await refreshSiteText(req.user.id, business);
+    const comps = (await pool.query('select name, reason from competitors where user_id=$1 order by created_at limit 5', [req.user.id])).rows;
+    const { brief, ai } = await generateBrief({ cfg, business, campaign: c, competitors: comps, notes: notesFor(business, c.platform), fetchImpl });
+    const row = (await pool.query('update campaigns set brief=$2 where id=$1 returning *', [c.id, JSON.stringify(brief)])).rows[0];
+    res.json({ campaign: campaignOut(row, business), ai });
+  }));
   api.delete('/campaigns/:id', requireUser, writeLimiter, wrap(async (req, res) => {
     if (!/^[0-9a-f-]{36}$/.test(req.params.id)) return res.status(404).json({ error: 'Not found' });
     const r = await pool.query("delete from campaigns where id=$1 and user_id=$2 and status in ('pending','draft')", [req.params.id, req.user.id]);
@@ -177,7 +190,8 @@ export function createApp(cfg, { pool, wa = createWhatsAppClient(cfg.whatsapp), 
     );
     if (!rows[0]) return res.status(404).json({ error: 'Campaign not found or not awaiting approval' });
     await log(req.user.id, `You approved "${rows[0].title}"`);
-    res.json({ campaign: rows[0] });
+    const b = (await pool.query('select * from businesses where user_id=$1', [req.user.id])).rows[0];
+    res.json({ campaign: campaignOut(rows[0], b) });
   }));
 
   // --- channels (records which accounts the user marked as connected; real OAuth comes later) ---
@@ -217,6 +231,8 @@ export function createApp(cfg, { pool, wa = createWhatsAppClient(cfg.whatsapp), 
       `select role, content from (select id, role, content from chat_messages where user_id=$1 order by id desc limit 10) t order by id`,
       [req.user.id],
     )).rows;
+    await refreshSiteText(req.user.id, business);
+    const comps = (await pool.query('select name, url, market, reason, analysis from competitors where user_id=$1 order by created_at limit 8', [req.user.id])).rows;
     const draft = detectCampaignRequest(text, business);
     let campaign = null;
     let reused = false;
@@ -232,34 +248,39 @@ export function createApp(cfg, { pool, wa = createWhatsAppClient(cfg.whatsapp), 
          values ($1,$2,$3,$4,'pending',$5,$6,$7,$8) returning *`,
         [crypto.randomUUID(), req.user.id, draft.title, draft.platform, draft.budget_per_day, draft.duration_days, draft.audience, draft.expected_leads],
       )).rows[0];
+      const { brief } = await generateBrief({ cfg, business, campaign, competitors: comps, notes: notesFor(business, campaign.platform), fetchImpl });
+      campaign = (await pool.query('update campaigns set brief=$2 where id=$1 returning *', [campaign.id, JSON.stringify(brief)])).rows[0];
       await log(req.user.id, `Drafted "${campaign.title}" for your approval`);
     }
-    await refreshSiteText(req.user.id, business);
-    const [comps, camps] = await Promise.all([
-      pool.query('select name, url, market, reason, analysis from competitors where user_id=$1 order by created_at limit 8', [req.user.id]),
-      pool.query('select title, platform, status, budget_per_day, duration_days from campaigns where user_id=$1 order by created_at desc limit 8', [req.user.id]),
-    ]);
-    const context = buildAssistantContext({ business, competitors: comps.rows, campaigns: camps.rows });
+    const camps = await pool.query('select title, platform, status, budget_per_day, duration_days from campaigns where user_id=$1 order by created_at desc limit 8', [req.user.id]);
+    const context = buildAssistantContext({ business, competitors: comps, campaigns: camps.rows, websiteNotes: notesFor(business) });
     const reply = await assistantReply({ cfg, context, history, text, campaign, reused, fetchImpl });
     await pool.query('insert into chat_messages(user_id, role, content) values ($1,$2,$3), ($1,$4,$5)', [req.user.id, 'user', text, 'assistant', reply]);
-    res.json({ reply, campaign });
+    res.json({ reply, campaign: campaign ? campaignOut(campaign, business) : null });
   }));
 
-  // Reads the owner's own website once a week (or when it was never read) so the assistant knows the business.
-  // Failures are remembered for an hour so a broken site is not retried on every message.
-  async function refreshSiteText(userId, business) {
+  // Reads the owner's own website once a week (or when it was never read) so the assistant knows the business,
+  // and checks it for things ads need (HTTPS, mobile, contact, Meta Pixel). Failures are remembered for an hour.
+  async function refreshSiteText(userId, business, { force = false } = {}) {
     if (!business?.website) return;
     const fresh = business.site_fetched_at && Date.now() - new Date(business.site_fetched_at).getTime() < (business.site_text ? 7 * 86_400_000 : 3_600_000);
-    if (fresh) return;
+    if (fresh && !force) return;
     try {
       const url = /^https?:\/\//i.test(business.website) ? business.website : `https://${business.website}`;
-      const p = extractPage(await fetchPage(url));
+      const html = await fetchPage(url);
+      const p = extractPage(html);
       business.site_text = `${p.title}. ${p.description}. ${p.text}`.slice(0, 4000);
-      await pool.query('update businesses set site_text=$2, site_fetched_at=now() where user_id=$1', [userId, business.site_text]);
+      business.site_signals = JSON.stringify(siteSignals(html, url));
+      await pool.query('update businesses set site_text=$2, site_signals=$3, site_fetched_at=now() where user_id=$1', [userId, business.site_text, business.site_signals]);
     } catch {
-      await pool.query('update businesses set site_fetched_at=now() where user_id=$1', [userId]);
+      business.site_signals = JSON.stringify({ ok: false });
+      await pool.query('update businesses set site_signals=$2, site_fetched_at=now() where user_id=$1', [userId, business.site_signals]);
     }
   }
+  const parseSignals = (b) => { try { return b?.site_signals ? JSON.parse(b.site_signals) : null; } catch { return null; } };
+  const notesFor = (b, platform) => websiteNotes({ business: b, signals: parseSignals(b), cfg, platform });
+  const briefOf = (row) => { try { return row.brief ? JSON.parse(row.brief) : null; } catch { return null; } };
+  const campaignOut = (row, b) => { const { brief, ...rest } = row; return { ...rest, brief: briefOf(row), website_notes: b ? notesFor(b, row.platform) : [] }; };
 
   // --- dashboard ---
   api.get('/dashboard', requireUser, wrap(async (req, res) => {
@@ -287,13 +308,7 @@ export function createApp(cfg, { pool, wa = createWhatsAppClient(cfg.whatsapp), 
     if (!business || (!business.description && !business.website)) {
       throw new ValidationError('Describe your business or add your website first');
     }
-    if (business.website) {
-      try {
-        const url = /^https?:\/\//i.test(business.website) ? business.website : `https://${business.website}`;
-        business.site_text = [extractPage(await fetchPage(url))].map((p) => `${p.title}. ${p.description}. ${p.text}`)[0].slice(0, 4000);
-        await pool.query('update businesses set site_text=$2, site_fetched_at=now() where user_id=$1', [req.user.id, business.site_text]);
-      } catch { /* own site is optional context */ }
-    }
+    await refreshSiteText(req.user.id, business, { force: true });
     // One AI discovery per 24h per user (operators in ADMIN_EMAILS are exempt). Failed calls give the slot back.
     const operator = isAdmin(req.user.email);
     const prev = business.last_discovery_at;

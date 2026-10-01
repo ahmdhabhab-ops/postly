@@ -1578,6 +1578,55 @@ function renderDashboard(d){
   if(!pending.length){ box.innerHTML = '<p class="empty-note">Nothing waiting for approval.</p>'; }
   pending.forEach(c=>box.appendChild(campaignCard(c)));
 }
+function linkify(node, text){
+  String(text).split(/(https?:\/\/[^\s)]+)/).forEach(part=>{
+    if(/^https?:\/\//.test(part)){
+      const a = document.createElement('a'); a.href = part; a.target = '_blank'; a.rel = 'noopener noreferrer';
+      a.textContent = part; a.style.cssText = 'color:var(--violet); text-decoration:underline;'; node.appendChild(a);
+    }else if(part){ node.appendChild(document.createTextNode(part)); }
+  });
+}
+function planRow(parent, label, value){
+  if(!value || (Array.isArray(value) && !value.length)) return;
+  const row = document.createElement('div'); row.style.cssText = 'margin:10px 0;';
+  const k = document.createElement('div'); k.className = 'k'; k.style.cssText = 'font-size:12px; color:var(--text-faint); margin-bottom:4px;'; k.textContent = label;
+  row.appendChild(k);
+  if(Array.isArray(value)){
+    const box = document.createElement('div'); box.style.cssText = 'display:flex; flex-wrap:wrap; gap:6px;';
+    value.forEach(v=>{ const chip = document.createElement('span'); chip.className = 'chip'; chip.style.paddingRight = '12px'; chip.textContent = v; box.appendChild(chip); });
+    row.appendChild(box);
+  }else{
+    const v = document.createElement('div'); v.style.cssText = 'font-size:14px;'; v.textContent = value; row.appendChild(v);
+  }
+  parent.appendChild(row);
+}
+function planList(parent, label, items, color){
+  if(!items || !items.length) return;
+  const box = document.createElement('div');
+  box.style.cssText = 'margin:12px 0; padding:12px 14px; border-radius:10px; border:1px solid ' + (color || 'var(--border)') + '; background:var(--surface-2);';
+  const k = document.createElement('div'); k.style.cssText = 'font-size:12.5px; font-weight:600; margin-bottom:6px;'; k.textContent = label;
+  box.appendChild(k);
+  const ul = document.createElement('ul'); ul.style.cssText = 'margin:0 0 0 18px; font-size:13.5px; color:var(--text-dim);';
+  items.forEach(t=>{ const li = document.createElement('li'); li.style.margin = '3px 0'; linkify(li, t); ul.appendChild(li); });
+  box.appendChild(ul); parent.appendChild(box);
+}
+function briefToText(c){
+  const b = c.brief; if(!b) return c.title;
+  const a = b.audience || {};
+  const L = [];
+  L.push(c.title + ' (' + c.platform + ')');
+  L.push('Budget: $' + c.budget_per_day + '/day for ' + c.duration_days + ' days');
+  L.push('Objective: ' + b.objective);
+  L.push('Audience: ages ' + a.age_min + '-' + a.age_max + ', ' + a.genders + '; locations: ' + (a.locations||[]).join(', '));
+  L.push('Interests / keywords: ' + (a.interests||[]).join(', '));
+  if(b.placements.length) L.push('Placements: ' + b.placements.join(', '));
+  if(b.creative.formats.length) L.push('Creative formats: ' + b.creative.formats.join(', '));
+  b.creative.ideas.forEach(x=>L.push('- Idea: ' + x));
+  L.push('Headline: ' + b.copy.headline); L.push('Text: ' + b.copy.primary_text); L.push('Button: ' + b.copy.cta);
+  if(b.landing) L.push('Send people to: ' + b.landing);
+  if(b.kpis.length) L.push('Track: ' + b.kpis.join(', '));
+  return L.join('\n');
+}
 function campaignCard(c){
   const card = document.createElement('div');
   card.className = 'campaign-card';
@@ -1592,13 +1641,50 @@ function campaignCard(c){
       '<div><div class="k">Duration</div><div class="v">' + esc(c.duration_days) + ' days</div></div>' +
       '<div><div class="k">Audience</div><div class="v">' + esc(c.audience) + '</div></div>' +
       '<div><div class="k">Expected leads</div><div class="v">~' + esc(c.expected_leads) + '</div></div>' +
-    '</div>' +
+    '</div><div class="plan-slot"></div>' +
     (live ? '<div class="campaign-actions"><span style="color:var(--green); font-size:13.5px;">✓ Approved. Not published yet: it will not run on ' + esc(c.platform) + ' until that channel integration is live.</span></div>'
-          : '<div class="campaign-actions"><button class="btn btn-primary btn-sm" data-act="approve">Approve & Launch</button><button class="btn btn-ghost btn-sm" data-act="discard">Discard</button></div>');
-  const btn = card.querySelector('[data-act="approve"]');
-  if(btn) btn.addEventListener('click', ()=>approveCampaign(c.id, btn));
-  const dis = card.querySelector('[data-act="discard"]');
-  if(dis) dis.addEventListener('click', ()=>discardCampaign(c.id, dis));
+          : '') +
+    '<div class="campaign-actions card-actions"></div>';
+
+  const slot = card.querySelector('.plan-slot');
+  const b = c.brief;
+  if(b){
+    const d = document.createElement('details'); d.open = !live;
+    const sm = document.createElement('summary'); sm.style.cssText = 'cursor:pointer; font-weight:600; font-size:14px; margin-bottom:6px;'; sm.textContent = 'Campaign plan';
+    d.appendChild(sm);
+    const a = b.audience;
+    planRow(d, 'Objective', b.objective);
+    planRow(d, 'Who to target', 'Ages ' + a.age_min + '–' + a.age_max + ' · ' + a.genders + (a.locations.length ? ' · ' + a.locations.join(', ') : ''));
+    planRow(d, c.platform === 'Google' ? 'Search keywords' : 'Interests', a.interests);
+    planRow(d, 'Targeting notes', a.notes);
+    planRow(d, 'Where ads show', b.placements);
+    planRow(d, 'Ad formats', b.creative.formats);
+    planList(d, 'Creative ideas', b.creative.ideas);
+    planRow(d, 'Headline', b.copy.headline);
+    planRow(d, 'Main text', b.copy.primary_text);
+    planRow(d, 'Button', b.copy.cta);
+    planRow(d, 'Send people to', b.landing);
+    planRow(d, 'What to track', b.kpis);
+    planList(d, 'We assumed (change if you know better)', b.assumptions, 'rgba(255,184,76,0.5)');
+    planList(d, 'Help us improve this plan: tell the assistant', b.questions);
+    slot.appendChild(d);
+  }
+  planList(slot, 'Before you launch: your website', c.website_notes, 'rgba(255,148,148,0.5)');
+
+  const actions = card.querySelector('.card-actions');
+  const mk = (label, cls, fn)=>{ const x = document.createElement('button'); x.className = 'btn btn-sm ' + cls; x.textContent = label; x.addEventListener('click', ()=>fn(x)); actions.appendChild(x); return x; };
+  if(!live) mk('Approve & Launch', 'btn-primary', (x)=>approveCampaign(c.id, x));
+  if(b) mk('Copy plan', 'btn-ghost', async ()=>{
+    try{ await navigator.clipboard.writeText(briefToText(c)); showToast('Plan copied. Paste it when you create the ad.'); }
+    catch(e){ showToast('Could not copy. Select the text manually.'); }
+  });
+  mk(b ? 'Rewrite plan' : 'Create plan', 'btn-ghost', async (x)=>{
+    busy(x, true); x.textContent = 'Writing…';
+    try{ await api('POST','/campaigns/'+c.id+'/plan'); await refreshData(); }
+    catch(e){ showToast(e.message); x.textContent = b ? 'Rewrite plan' : 'Create plan'; busy(x, false); }
+  });
+  if(!live) mk('Discard', 'btn-ghost', (x)=>discardCampaign(c.id, x));
+  if(!actions.children.length) actions.remove();
   return card;
 }
 function renderCampaigns(){
