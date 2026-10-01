@@ -18,8 +18,21 @@ const EMAIL = /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/;
 const CHANNELS = ['Instagram', 'Facebook', 'Meta Ads', 'TikTok', 'Google Business Profile', 'ChatGPT Ads', 'WhatsApp'];
 const BUSINESS_FIELDS = {
   name: 120, type: 60, industry: 60, website: 200, location: 120, description: 1000,
-  goal: 120, country: 80, usp: 1000, price_range: 60, customer_age: 20, customer_type: 30, customer_location: 120, interests: 300, budget: 40,
+  goal: 120, country: 400, usp: 1000, price_range: 60, customer_age: 20, customer_type: 30, customer_location: 120, interests: 300, budget: 40,
 };
+
+// Several markets are stored in one text column separated by " | ".
+export function normalizeCountries(raw) {
+  const seen = new Set(); const out = [];
+  for (const part of String(raw).split('|')) {
+    const v = part.trim();
+    if (!v || seen.has(v.toLowerCase())) continue;
+    if (v.length > 50) throw new ValidationError('Each country name must be 50 characters or less');
+    seen.add(v.toLowerCase()); out.push(v);
+  }
+  if (out.length > 6) throw new ValidationError('Choose up to 6 countries');
+  return out.join(' | ');
+}
 
 const str = (v, max, field) => {
   if (v === undefined || v === null) return '';
@@ -130,7 +143,10 @@ export function createApp(cfg, { pool, wa = createWhatsAppClient(cfg.whatsapp), 
     const sets = [];
     const vals = [req.user.id];
     for (const [key, max] of Object.entries(BUSINESS_FIELDS)) {
-      if (b[key] !== undefined) { vals.push(str(b[key], max, key)); sets.push(`${key} = $${vals.length}`); }
+      if (b[key] !== undefined) {
+        const v = key === 'country' ? normalizeCountries(str(b[key], max, key)) : str(b[key], max, key);
+        vals.push(v); sets.push(`${key} = $${vals.length}`);
+      }
     }
     if (b.onboarded === true) sets.push('onboarded = true');
     if (!sets.length) throw new ValidationError('Nothing to update');
@@ -224,7 +240,7 @@ export function createApp(cfg, { pool, wa = createWhatsAppClient(cfg.whatsapp), 
   }));
 
   // --- competitors ---
-  const competitorRow = (r) => ({ id: r.id, name: r.name, url: r.url, reason: r.reason, source: r.source, analysis: r.analysis, analyzed_at: r.analyzed_at });
+  const competitorRow = (r) => ({ id: r.id, name: r.name, url: r.url, market: r.market, reason: r.reason, source: r.source, analysis: r.analysis, analyzed_at: r.analyzed_at });
   api.get('/competitors', requireUser, wrap(async (req, res) => {
     const { rows } = await pool.query('select * from competitors where user_id=$1 order by created_at', [req.user.id]);
     res.json({ competitors: rows.map(competitorRow) });
@@ -260,9 +276,10 @@ export function createApp(cfg, { pool, wa = createWhatsAppClient(cfg.whatsapp), 
       if (!host || seen.has(host)) continue;
       seen.add(host); slots--;
       const why = typeof c.why === 'string' ? c.why.trim().slice(0, 200) : '';
+      const market = typeof c.country === 'string' ? c.country.trim().slice(0, 60) : '';
       const { rows } = await pool.query(
-        "insert into competitors(id,user_id,name,url,reason,source) values ($1,$2,$3,$4,$5,'ai') returning *",
-        [crypto.randomUUID(), req.user.id, name, url, why]);
+        "insert into competitors(id,user_id,name,url,reason,source,market) values ($1,$2,$3,$4,$5,'ai',$6) returning *",
+        [crypto.randomUUID(), req.user.id, name, url, why, market]);
       added.push(competitorRow(rows[0]));
     }
     await log(req.user.id, `AI found ${added.length} competitor(s) for you`);

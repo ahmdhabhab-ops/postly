@@ -85,6 +85,7 @@ create table if not exists competitors (
 );
 alter table competitors add column if not exists reason text not null default '';
 alter table competitors add column if not exists source text not null default 'manual';
+alter table competitors add column if not exists market text not null default '';
 create index if not exists competitors_user_idx on competitors(user_id, created_at);
 create table if not exists reports (
   id bigserial primary key,

@@ -103,3 +103,20 @@ test('discover is disabled without an Anthropic key', async () => {
   assert.equal(r.status, 503);
   s.close();
 });
+
+test('several countries: normalised, capped at 6, searched per market, market saved on each competitor', async () => {
+  const c = await signup('d6@z.com');
+  const ok = await c.put('/api/business', { country: ' Lebanon | UAE |lebanon| Qatar ', description: 'Coffee beans' });
+  assert.equal(ok.json.business.country, 'Lebanon | UAE | Qatar');
+  assert.equal((await c.put('/api/business', { country: 'A|B|C|D|E|F|G' })).status, 400);
+  assert.equal((await c.put('/api/business', { country: 'x'.repeat(60) })).status, 400);
+
+  calls = [];
+  script = [text('[{"name":"Lebanese Roast","url":"https://lroast.example","country":"Lebanon","why":"local"},{"name":"Dubai Beans","url":"https://dbeans.example","country":"UAE","why":"online"}]')];
+  const r = await c.post('/api/competitors/discover');
+  assert.deepEqual(r.json.added.map((x) => x.market), ['Lebanon', 'UAE']);
+  assert.match(calls[0].system, /each market separately/i);
+  assert.match(calls[0].messages[0].content, /Lebanon, UAE, Qatar/);
+  assert.ok(calls[0].tools[0].max_uses >= 8 || calls[0].tools[0].max_uses === Math.min(8, 3 + 3 * 2));
+  assert.equal((await c.get('/api/competitors')).json.competitors[0].market, 'Lebanon');
+});

@@ -566,6 +566,13 @@ input:focus,select:focus,textarea:focus{outline:none; border-color:var(--violet)
 }
 .platform-option:hover{background:var(--hover-tint);}
 .platform-option .po-icon{width:26px; height:26px; border-radius:7px; background:var(--surface-2); display:flex; align-items:center; justify-content:center; font-size:10.5px; font-weight:700; font-family:var(--font-display); flex-shrink:0;}
+.chip-input{display:flex; flex-wrap:wrap; gap:6px; align-items:center; width:100%; background:var(--surface); border:1px solid var(--border-strong); border-radius:var(--radius-sm); padding:6px 10px; min-height:46px; cursor:text;}
+.chip-input:focus-within{border-color:var(--violet);}
+.chip-input input{flex:1; min-width:140px; width:auto; border:none; background:transparent; padding:6px 4px;}
+.chip-input input:focus{outline:none; border:none;}
+.chip{display:inline-flex; align-items:center; gap:6px; background:rgba(245,181,68,0.14); border:1px solid var(--border-glow); color:var(--text); border-radius:100px; padding:4px 6px 4px 12px; font-size:13px;}
+.chip button{width:18px; height:18px; border-radius:50%; line-height:1; color:var(--text-dim); font-size:15px;}
+.chip button:hover{background:var(--hover-tint); color:var(--text);}
 .form-error{color:var(--red); font-size:13.5px; margin:0 0 14px; min-height:0;}
 .form-error:empty{display:none;}
 .sample-note{font-size:12.5px; color:var(--text-faint); border:1px dashed var(--border-strong); border-radius:var(--radius-sm); padding:9px 14px; margin-bottom:22px;}
@@ -1217,7 +1224,10 @@ input:focus,select:focus,textarea:focus{outline:none; border-color:var(--violet)
           <p style="color:var(--text-dim); font-size:13.5px; margin-bottom:16px;">The more detail you give, the better the comparison.</p>
           <div class="field-row2">
             <div class="field-group"><label>Your website</label><input type="text" id="aboutWebsite" maxlength="200" placeholder="yourbusiness.com"></div>
-            <div class="field-group"><label>Country / city you sell in</label><input type="text" id="aboutCountry" maxlength="80" placeholder="e.g. Lebanon, Beirut"></div>
+            <div class="field-group"><label>Countries you sell in (up to 6)</label>
+              <div class="chip-input" id="aboutCountryBox"><span id="aboutCountryChips" style="display:contents;"></span><input type="text" id="aboutCountry" list="countryList" maxlength="50" placeholder="Type a country, press Enter"></div>
+              <datalist id="countryList"><option value="Lebanon"><option value="United Arab Emirates"><option value="Saudi Arabia"><option value="Qatar"><option value="Kuwait"><option value="Bahrain"><option value="Oman"><option value="Jordan"><option value="Egypt"><option value="Iraq"><option value="Syria"><option value="Turkey"><option value="Cyprus"><option value="France"><option value="Germany"><option value="United Kingdom"><option value="Italy"><option value="Spain"><option value="United States"><option value="Canada"><option value="Brazil"><option value="Australia"><option value="India"><option value="Morocco"><option value="Tunisia"><option value="Algeria"><option value="Nigeria"><option value="South Africa"></datalist>
+            </div>
           </div>
           <div class="field-group"><label>What do you offer?</label><textarea rows="3" id="aboutDesc" maxlength="1000" placeholder="Products or services, who they are for, anything that describes your business"></textarea></div>
           <div class="field-row2">
@@ -1736,19 +1746,53 @@ document.querySelectorAll('.goal-chip').forEach(chip=>{
 })();
 
 /* ---------- competitors ---------- */
+let aboutCountries = [];
+function renderCountryChips(){
+  const box = $('aboutCountryChips');
+  box.innerHTML = '';
+  aboutCountries.forEach((c, idx)=>{
+    const chip = document.createElement('span'); chip.className = 'chip';
+    const t = document.createElement('span'); t.textContent = c;
+    const x = document.createElement('button'); x.type = 'button'; x.setAttribute('aria-label','Remove ' + c); x.textContent = '×';
+    x.addEventListener('click', ()=>{ aboutCountries.splice(idx,1); renderCountryChips(); });
+    chip.appendChild(t); chip.appendChild(x); box.appendChild(chip);
+  });
+}
+function addCountry(raw){
+  const v = (raw || '').trim();
+  if(!v) return;
+  if(aboutCountries.some(c=>c.toLowerCase() === v.toLowerCase())) return;
+  if(aboutCountries.length >= 6){ setError('aboutError','You can choose up to 6 countries.'); return; }
+  setError('aboutError','');
+  aboutCountries.push(v); renderCountryChips();
+}
+(function(){
+  const inp = $('aboutCountry');
+  const flush = ()=>{ addCountry(inp.value); inp.value = ''; };
+  inp.addEventListener('keydown', e=>{
+    if(e.key === 'Enter' || e.key === ','){ e.preventDefault(); flush(); }
+    else if(e.key === 'Backspace' && !inp.value && aboutCountries.length){ aboutCountries.pop(); renderCountryChips(); }
+  });
+  inp.addEventListener('change', flush);   // picking an option from the suggestions list
+  inp.addEventListener('blur', flush);
+  $('aboutCountryBox').addEventListener('click', ()=>inp.focus());
+})();
 function fillAbout(){
   const b = (me && me.business) || {};
   $('aboutWebsite').value = b.website || '';
-  $('aboutCountry').value = b.country || '';
+  aboutCountries = (b.country || '').split('|').map(x=>x.trim()).filter(Boolean);
+  renderCountryChips();
+  $('aboutCountry').value = '';
   $('aboutDesc').value = b.description || '';
   $('aboutPrice').value = b.price_range || '';
   $('aboutUsp').value = b.usp || '';
 }
 async function saveAbout(quiet){
+  addCountry($('aboutCountry').value); $('aboutCountry').value = '';
   setError('aboutError','');
   try{
     me = await api('PUT','/business',{
-      website: $('aboutWebsite').value, country: $('aboutCountry').value, description: $('aboutDesc').value,
+      website: $('aboutWebsite').value, country: aboutCountries.join(' | '), description: $('aboutDesc').value,
       price_range: $('aboutPrice').value, usp: $('aboutUsp').value
     });
     if(quiet !== true) showToast('Saved.');
@@ -1786,7 +1830,7 @@ function renderCompetitors(list){
     info.appendChild(h); info.appendChild(u);
     if(c.reason){
       const why = document.createElement('div'); why.style.cssText = 'color:var(--text-dim); font-size:13.5px; margin-top:6px;';
-      why.textContent = (c.source === 'ai' ? 'Found by AI: ' : '') + c.reason;
+      why.textContent = (c.market ? c.market + ' · ' : '') + (c.source === 'ai' ? 'Found by AI: ' : '') + c.reason;
       info.appendChild(why);
     }
     const actions = document.createElement('div');
