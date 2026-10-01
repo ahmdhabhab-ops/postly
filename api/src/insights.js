@@ -41,18 +41,36 @@ export async function discoverCompetitors({ cfg, business, fetchImpl }) {
       'You find real direct competitors for a small business by searching the web.',
       'Prefer businesses in the same niche that a customer in the given market would compare with this one. Only return companies whose website you actually found in search results.',
       countries.length > 1 ? `The business sells in several markets (${countries.join(', ')}). Search each market separately and return about 2-3 competitors per market (max 8 in total).` : 'Return up to 6 competitors.',
-      'Final answer: ONLY a JSON array (no prose, no code fences) of objects: {"name": string, "url": string (homepage), "country": string (the market it competes in, from the list given), "why": string (max 140 chars: why they compete)}.',
+      'Your final message must contain nothing except the JSON array - no introduction, no citations, no code fences. Format: ONLY a JSON array (no prose, no code fences) of objects: {"name": string, "url": string (homepage), "country": string (the market it competes in, from the list given), "why": string (max 140 chars: why they compete)}.',
       UNTRUSTED,
     ].join('\n'),
     user: `Find competitors for this business.\n${profile(business)}\n${business?.site_text ? `<own_site>\n${business.site_text.slice(0, 3000)}\n</own_site>` : ''}`,
   });
   if (!out) return null;
-  const a = out.indexOf('['); const z = out.lastIndexOf(']');
-  if (a < 0 || z <= a) return [];
-  try {
-    const arr = JSON.parse(out.slice(a, z + 1));
-    return Array.isArray(arr) ? arr : [];
-  } catch { return []; }
+  const arr = extractJsonArray(out);
+  if (!arr.length) console.log('competitor discovery: no usable list in model output:', out.slice(0, 400).replace(/\s+/g, ' '));
+  return arr;
+}
+
+// Finds the first well-formed JSON array of objects inside free text (ignores "[1]" citations, prose, code fences).
+export function extractJsonArray(text) {
+  for (let i = text.indexOf('['); i >= 0; i = text.indexOf('[', i + 1)) {
+    let depth = 0, inStr = false, esc = false;
+    for (let j = i; j < text.length; j++) {
+      const ch = text[j];
+      if (inStr) { if (esc) esc = false; else if (ch === '\\') esc = true; else if (ch === '"') inStr = false; continue; }
+      if (ch === '"') inStr = true;
+      else if (ch === '[') depth++;
+      else if (ch === ']' && --depth === 0) {
+        try {
+          const v = JSON.parse(text.slice(i, j + 1));
+          if (Array.isArray(v) && v.length && v.every((x) => x && typeof x === 'object')) return v;
+        } catch { /* not JSON, try the next '[' */ }
+        break;
+      }
+    }
+  }
+  return [];
 }
 
 export function buildStats(rows) {

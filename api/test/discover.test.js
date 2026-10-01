@@ -130,3 +130,20 @@ test('web search gives up before the proxy timeout instead of hanging', async ()
   assert.equal(out, null);
   assert.ok(Date.now() - t0 < 6000 && n >= 1);
 });
+
+test('JSON list is found even with prose, citations and code fences around it', async () => {
+  const { extractJsonArray } = await import('../src/insights.js');
+  const list = '[{"name":"A [x]","url":"https://a.example","why":"w"}]';
+  assert.equal(extractJsonArray(`Here are the results [1][2]:\n\`\`\`json\n${list}\n\`\`\`\nSources: [1] foo, [2] bar`).length, 1);
+  assert.equal(extractJsonArray(`Intro [Search results]. ${list} Thanks!`)[0].name, 'A [x]');
+  assert.deepEqual(extractJsonArray('No competitors found [1].'), []);
+  assert.deepEqual(extractJsonArray('[1, 2, 3]'), []);
+});
+
+test('discover reports how many candidates the AI returned', async () => {
+  const c = await signup('d7@z.com');
+  await c.put('/api/business', { description: 'wedding invites' });
+  script = [text('Sorry [1] none.')];
+  const r = await c.post('/api/competitors/discover');
+  assert.deepEqual(r.json, { added: [], found: 0 });
+});

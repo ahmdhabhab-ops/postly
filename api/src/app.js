@@ -283,7 +283,7 @@ export function createApp(cfg, { pool, wa = createWhatsAppClient(cfg.whatsapp), 
       added.push(competitorRow(rows[0]));
     }
     await log(req.user.id, `AI found ${added.length} competitor(s) for you`);
-    res.json({ added });
+    res.json({ added, found: found.length });
   }));
   api.post('/competitors', requireUser, writeLimiter, wrap(async (req, res) => {
     const name = str(req.body?.name, 100, 'name');

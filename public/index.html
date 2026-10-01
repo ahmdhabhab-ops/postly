@@ -1806,7 +1806,9 @@ async function discoverCompetitors(){
   try{
     if(await saveAbout(true)){
       const r = await api('POST','/competitors/discover');
-      showToast(r.added.length ? 'Found ' + r.added.length + ' competitor(s).' : 'No new competitors found. Try adding more detail.');
+      if(r.added.length) showToast('Found ' + r.added.length + ' competitor(s).');
+      else if(r.found > 0) showToast('Everything the AI found is already in your list.');
+      else setError('aboutError','The AI search returned no usable competitors. Add more detail about what you offer and who you sell to, or add a country, then try again.');
       await loadCompetitors();
     }
   }catch(e){ setError('aboutError', e.message); }
