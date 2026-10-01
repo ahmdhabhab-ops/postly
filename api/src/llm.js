@@ -1,11 +1,16 @@
+// `effort` is supported on Opus/Sonnet 4.6+ and Fable/Mythos, not on Haiku. Thinking tokens count against max_tokens,
+// so keep effort low and max_tokens generous for short answers.
+export const supportsEffort = (model) => /(opus-(4-[6-9]|5)|sonnet-(4-6|5)|fable|mythos)/.test(model);
+export const effortParams = (model, effort = 'low') => (supportsEffort(model) ? { output_config: { effort } } : {});
+
 // Thin wrapper around the Anthropic Messages API. Returns null when no key is set or the call fails.
-export async function complete({ cfg, system, user, maxTokens = 700, fetchImpl = fetch }) {
+export async function complete({ cfg, system, user, maxTokens = 2000, effort = 'low', fetchImpl = fetch }) {
   if (!cfg.anthropicApiKey) return null;
   try {
     const res = await fetchImpl('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: { 'x-api-key': cfg.anthropicApiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-      body: JSON.stringify({ model: cfg.anthropicModel, max_tokens: maxTokens, system, messages: [{ role: 'user', content: user }] }),
+      body: JSON.stringify({ model: cfg.anthropicModel, max_tokens: maxTokens, system, ...effortParams(cfg.anthropicModel, effort), messages: [{ role: 'user', content: user }] }),
       signal: AbortSignal.timeout(30_000),
     });
     if (!res.ok) throw new Error(`anthropic ${res.status}`);

@@ -19,11 +19,11 @@ export async function analyzeCompetitor({ cfg, business, competitor, html, fetch
   const facts = `Title: ${page.title || 'n/a'}\nDescription: ${page.description || 'n/a'}`;
   const own = business?.site_text ? `\nText from our own website:\n<own_site>\n${business.site_text.slice(0, 3000)}\n</own_site>` : '';
   const out = await complete({
-    cfg, fetchImpl, maxTokens: 900,
+    cfg, fetchImpl, maxTokens: 2500, effort: 'medium',
     system: [
       'You are a marketing strategist. Compare a competitor with the user\'s business using only the information provided.',
       'Reply in plain text with exactly these headings: Positioning, What they do better than you, Where you are stronger, How to fix it (prioritised actions).',
-      'Be specific and honest: if the competitor really is stronger on something, say so and say how the user can close the gap. Say "not visible on the page" when evidence is missing. Max 250 words.',
+      'Be specific and honest: if the competitor really is stronger on something, say so and say how the user can close the gap. Say "not visible on the page" when evidence is missing. Max 250 words. Use plain text with short paragraphs and '-' bullets; no markdown symbols like ** or #.',
       UNTRUSTED,
     ].join('\n'),
     user: `${profile(business)}${own}\n\nCompetitor: ${competitor.name} (${competitor.url})\n${facts}\n<page>\n${page.text}\n</page>`,
@@ -36,7 +36,7 @@ export async function analyzeCompetitor({ cfg, business, competitor, html, fetch
 export async function discoverCompetitors({ cfg, business, fetchImpl }) {
   const countries = markets(business).split(', ').filter(Boolean);
   const out = await completeWithSearch({
-    cfg, fetchImpl, maxTokens: 3000, maxSearches: Math.min(5, 2 + countries.length), country: undefined,
+    cfg, fetchImpl, maxTokens: 4000, maxSearches: Math.min(5, 2 + countries.length), country: undefined,
     system: [
       'You find real direct competitors for a small business by searching the web.',
       'Prefer businesses in the same niche that a customer in the given market would compare with this one. Only return companies whose website you actually found in search results.',
@@ -87,9 +87,9 @@ export function buildStats(rows) {
 export async function writeReport({ cfg, business, stats, activity, fetchImpl }) {
   const facts = JSON.stringify(stats);
   const out = await complete({
-    cfg, fetchImpl, maxTokens: 600,
+    cfg, fetchImpl, maxTokens: 2000,
     system: [
-      'You write a short marketing status report (max 160 words) for a small-business owner.',
+      'You write a short marketing status report (max 160 words) for a small-business owner. Plain text, short paragraphs and \'-\' bullets, no markdown symbols like ** or #.',
       'Use ONLY the numbers in the provided JSON. Never invent metrics such as clicks, spend, leads or revenue.',
       'State clearly that ad-performance data (spend, clicks, conversions) is not connected yet. End with 2-3 concrete next steps.',
     ].join('\n'),

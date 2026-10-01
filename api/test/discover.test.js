@@ -201,3 +201,36 @@ test('cheaper search model uses the basic web search tool; newer models use dyna
     ['claude-sonnet-5-5', 'web_search_20260209'],
   ]);
 });
+
+test('chat gives the model the full business context and enough token budget', async () => {
+  const c = await signup('ctx@z.com');
+  await c.put('/api/business', { website: 'beancoffee.example', description: 'Specialty coffee beans', usp: 'Roasted daily', price_range: '$$', country: 'Lebanon | UAE', goal: 'Increase sales' });
+  await c.post('/api/competitors', { name: 'Riverstone Cafe', url: 'riverstone.example' });
+  script = [text('Drafted.')];
+  await c.post('/api/chat', { message: 'Create an Instagram campaign for me.' });
+  calls = [];
+  script = [text('Here is a plan.')];
+  const r = await c.post('/api/chat', { message: 'I need more customers.' });
+  assert.equal(r.json.reply, 'Here is a plan.');
+  const body = calls[0];
+  assert.match(body.system, /Text from their website[\s\S]*We sell coffee beans in Beirut/);   // read from the owner's own link
+  assert.match(body.system, /Roasted daily/);
+  assert.match(body.system, /Markets: Lebanon, UAE/);
+  assert.match(body.system, /Riverstone Cafe/);                    // competitors
+  assert.match(body.system, /Instagram, pending/);                 // campaigns
+  assert.match(body.system, /untrusted/i);
+  assert.ok(body.max_tokens >= 1500);                              // thinking tokens count against max_tokens
+  assert.deepEqual(body.output_config, { effort: 'low' });
+  assert.equal(body.messages.at(-1).content, 'I need more customers.');
+});
+
+test('effort is only sent to models that support it', async () => {
+  const { complete } = await import('../src/llm.js');
+  const seen = [];
+  const f = async (_u, o) => { seen.push(JSON.parse(o.body)); return new Response(JSON.stringify({ content: [{ type: 'text', text: 'ok' }] }), { status: 200 }); };
+  await complete({ cfg: { ...cfg, anthropicModel: 'claude-haiku-4-5' }, system: 's', user: 'u', fetchImpl: f });
+  await complete({ cfg: { ...cfg, anthropicModel: 'claude-sonnet-5-5' }, system: 's', user: 'u', fetchImpl: f });
+  assert.equal(seen[0].output_config, undefined);
+  assert.deepEqual(seen[1].output_config, { effort: 'low' });
+  assert.ok(seen[1].max_tokens >= 1500);
+});

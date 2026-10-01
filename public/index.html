@@ -1674,12 +1674,36 @@ async function sendWhatsApp(){
 }
 
 /* ---------- assistant ---------- */
+/* Minimal, safe rendering of AI text: line breaks, "- " bullets and **bold** (no HTML is ever injected). */
+function inlineRich(node, text){
+  text.split(/(\*\*[^*]+\*\*)/).forEach(part=>{
+    if(part.length > 4 && part.startsWith('**') && part.endsWith('**')){
+      const b = document.createElement('strong'); b.textContent = part.slice(2, -2); node.appendChild(b);
+    }else if(part){ node.appendChild(document.createTextNode(part)); }
+  });
+}
+function renderRich(el, text){
+  el.textContent = '';
+  let list = null;
+  String(text).split('\n').forEach(line=>{
+    const m = line.match(/^\s*[-•]\s+(.*)$/);
+    if(m){
+      if(!list){ list = document.createElement('ul'); list.style.cssText = 'margin:6px 0 6px 18px;'; el.appendChild(list); }
+      const li = document.createElement('li'); inlineRich(li, m[1]); list.appendChild(li);
+      return;
+    }
+    list = null;
+    if(!line.trim()){ const sp = document.createElement('div'); sp.style.height = '8px'; el.appendChild(sp); return; }
+    const row = document.createElement('div'); inlineRich(row, line.replace(/^#+\s*/, '')); el.appendChild(row);
+  });
+}
 function addBubble(role, text){
   const log = $('chatLog');
   const m = document.createElement('div');
   m.className = 'msg ' + (role === 'user' ? 'user' : 'ai');
   if(role !== 'user'){ const w = document.createElement('div'); w.className = 'who'; w.textContent = 'Postly'; m.appendChild(w); }
-  m.appendChild(document.createTextNode(text));
+  if(role === 'user'){ m.appendChild(document.createTextNode(text)); }
+  else { const body = document.createElement('div'); renderRich(body, text); m.appendChild(body); }
   log.appendChild(m);
   log.scrollTop = log.scrollHeight;
 }
@@ -1847,8 +1871,8 @@ function renderCompetitors(list){
     panel.appendChild(head);
     if(c.analysis){
       const out = document.createElement('div');
-      out.style.cssText = 'white-space:pre-wrap; font-size:14px; color:var(--text-dim); margin-top:18px; padding-top:16px; border-top:1px solid var(--border);';
-      out.textContent = c.analysis;
+      out.style.cssText = 'font-size:14px; color:var(--text-dim); margin-top:18px; padding-top:16px; border-top:1px solid var(--border);';
+      renderRich(out, c.analysis);
       panel.appendChild(out);
       const meta = document.createElement('div');
       meta.style.cssText = 'font-size:12px; color:var(--text-faint); margin-top:10px;';
@@ -1896,8 +1920,8 @@ function renderReports(list){
     when.style.cssText = 'font-size:12px; color:var(--text-faint); margin-bottom:8px;';
     when.textContent = new Date(r.created_at).toLocaleString() + (r.ai ? ' · AI-written' : ' · basic summary');
     const body = document.createElement('div');
-    body.style.cssText = 'white-space:pre-wrap; font-size:14px; color:var(--text-dim);';
-    body.textContent = r.content;
+    body.style.cssText = 'font-size:14px; color:var(--text-dim);';
+    renderRich(body, r.content);
     item.appendChild(when); item.appendChild(body);
     box.appendChild(item);
   });

@@ -9,7 +9,7 @@ import {
   hashPassword, verifyPassword, createSession, setSessionCookie, clearSessionCookie,
   destroySession, sessionLoader, requireUser, csrfGuard,
 } from './auth.js';
-import { assistantReply, detectCampaignRequest } from './assistant.js';
+import { assistantReply, detectCampaignRequest, buildAssistantContext } from './assistant.js';
 import { fetchPublicPage, parsePublicUrl, FetchBlockedError } from './safefetch.js';
 import { analyzeCompetitor, buildStats, writeReport, discoverCompetitors } from './insights.js';
 import { extractPage } from './safefetch.js';
@@ -127,7 +127,7 @@ export function createApp(cfg, { pool, wa = createWhatsAppClient(cfg.whatsapp), 
   async function meResponse(userId) {
     const u = (await pool.query('select id,email,first_name,last_name,phone from users where id=$1', [userId])).rows[0];
     const business = (await pool.query('select * from businesses where user_id=$1', [userId])).rows[0] ?? null;
-    if (business) { delete business.site_text; delete business.last_discovery_at; } // internal cache of the user's own site text
+    if (business) { delete business.site_text; delete business.last_discovery_at; delete business.site_fetched_at; } // internal cache of the user's own site text
     return { user: { id: u.id, email: u.email, firstName: u.first_name, lastName: u.last_name, phone: u.phone, canSendWhatsApp: isAdmin(u.email) }, business };
   }
   const isAdmin = (email) => cfg.adminEmails.includes(String(email).toLowerCase());
@@ -220,10 +220,32 @@ export function createApp(cfg, { pool, wa = createWhatsAppClient(cfg.whatsapp), 
       )).rows[0];
       await log(req.user.id, `Drafted "${campaign.title}" for your approval`);
     }
-    const reply = await assistantReply({ cfg, business, history, text, campaign, fetchImpl });
+    await refreshSiteText(req.user.id, business);
+    const [comps, camps] = await Promise.all([
+      pool.query('select name, url, market, reason, analysis from competitors where user_id=$1 order by created_at limit 8', [req.user.id]),
+      pool.query('select title, platform, status, budget_per_day, duration_days from campaigns where user_id=$1 order by created_at desc limit 8', [req.user.id]),
+    ]);
+    const context = buildAssistantContext({ business, competitors: comps.rows, campaigns: camps.rows });
+    const reply = await assistantReply({ cfg, context, history, text, campaign, fetchImpl });
     await pool.query('insert into chat_messages(user_id, role, content) values ($1,$2,$3), ($1,$4,$5)', [req.user.id, 'user', text, 'assistant', reply]);
     res.json({ reply, campaign });
   }));
+
+  // Reads the owner's own website once a week (or when it was never read) so the assistant knows the business.
+  // Failures are remembered for an hour so a broken site is not retried on every message.
+  async function refreshSiteText(userId, business) {
+    if (!business?.website) return;
+    const fresh = business.site_fetched_at && Date.now() - new Date(business.site_fetched_at).getTime() < (business.site_text ? 7 * 86_400_000 : 3_600_000);
+    if (fresh) return;
+    try {
+      const url = /^https?:\/\//i.test(business.website) ? business.website : `https://${business.website}`;
+      const p = extractPage(await fetchPage(url));
+      business.site_text = `${p.title}. ${p.description}. ${p.text}`.slice(0, 4000);
+      await pool.query('update businesses set site_text=$2, site_fetched_at=now() where user_id=$1', [userId, business.site_text]);
+    } catch {
+      await pool.query('update businesses set site_fetched_at=now() where user_id=$1', [userId]);
+    }
+  }
 
   // --- dashboard ---
   api.get('/dashboard', requireUser, wrap(async (req, res) => {
@@ -255,7 +277,7 @@ export function createApp(cfg, { pool, wa = createWhatsAppClient(cfg.whatsapp), 
       try {
         const url = /^https?:\/\//i.test(business.website) ? business.website : `https://${business.website}`;
         business.site_text = [extractPage(await fetchPage(url))].map((p) => `${p.title}. ${p.description}. ${p.text}`)[0].slice(0, 4000);
-        await pool.query('update businesses set site_text=$2 where user_id=$1', [req.user.id, business.site_text]);
+        await pool.query('update businesses set site_text=$2, site_fetched_at=now() where user_id=$1', [req.user.id, business.site_text]);
       } catch { /* own site is optional context */ }
     }
     // One AI discovery per 24h per user (operators in ADMIN_EMAILS are exempt). Failed calls give the slot back.
