@@ -54,7 +54,7 @@ function once(url, { timeoutMs, maxBytes }) {
     const lib = url.protocol === 'https:' ? https : http;
     const req = lib.request(url, {
       method: 'GET', lookup: guardedLookup, timeout: timeoutMs,
-      headers: { 'user-agent': 'PostlyBot/1.0 (+competitor analysis)', accept: 'text/html,application/xhtml+xml' },
+      headers: { 'user-agent': 'Mozilla/5.0 (compatible; PostlyBot/1.0; website check requested by the site owner)', accept: 'text/html,application/xhtml+xml,*/*;q=0.8', 'accept-language': 'en-US,en;q=0.9' },
     }, (res) => {
       if ([301, 302, 303, 307, 308].includes(res.statusCode) && res.headers.location) {
         res.resume();

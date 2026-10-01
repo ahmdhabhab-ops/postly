@@ -2,7 +2,7 @@ import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { createApp } from '../src/app.js';
 import { createPool, migrate } from '../src/db.js';
-import { siteSignals, websiteNotes, sanitizeBrief, fallbackBrief, generateBrief } from '../src/brief.js';
+import { siteSignals, websiteNotes, sanitizeBrief, fallbackBrief, generateBrief, classifyFetchError } from '../src/brief.js';
 
 const DB = process.env.TEST_DATABASE_URL || 'postgres://postgres@localhost:5433/postly_test';
 const base = { trustProxyHops: 0, sessionDays: 1, adminEmails: [], adminApiKey: '', anthropicApiKey: 'KEY', anthropicModel: 'claude-sonnet-5-5',
@@ -54,11 +54,34 @@ test('website notes: deterministic, name the partner, depend on platform', () =>
   const none = websiteNotes({ business: { website: '' }, signals: null, cfg });
   assert.match(none[0], /do not have a website yet/);
   assert.match(none[0], /Hostbotics \(https:\/\/hostbotics\.net\/\) can help/);
-  assert.match(websiteNotes({ business: { website: 'x.com' }, signals: { ok: false }, cfg })[0], /could not open your website/);
+  const n = (signals) => websiteNotes({ business: { website: 'x.com' }, signals, cfg }).join(' ');
+  assert.match(n({ ok: false, reason: 'dns' }), /could not find your website address[\s\S]*Hostbotics/);
+  assert.match(n({ ok: false, reason: 'timeout' }), /did not answer in time/);
+  // blocked / unknown: never claim the site is down, never push the partner
+  for (const reason of ['blocked', 'other', undefined]) {
+    const t = n({ ok: false, reason });
+    assert.match(t, /does not mean it is down/);
+    assert.ok(!/Hostbotics/.test(t));
+  }
+  assert.deepEqual(websiteNotes({ business: { website: 'x.com' }, signals: null, cfg }), []);
+  const spa = siteSignals('<html><body><div id="root"></div></body></html>', 'https://x.com');
+  assert.equal(spa.spa, true);
+  const spaNote = n({ ...spa, ok: true });
+  assert.match(spaNote, /loads its content with JavaScript/);
+  assert.ok(!/Meta Pixel found/.test(spaNote) && !/very little content/.test(spaNote));
   const sig = { ok: true, https: true, pixel: false, contact: true, viewport: true, textLen: 900 };
   assert.match(websiteNotes({ business: { website: 'x.com' }, signals: sig, cfg, platform: 'Instagram' }).join(' '), /Meta Pixel/);
   assert.deepEqual(websiteNotes({ business: { website: 'x.com' }, signals: sig, cfg, platform: 'Google' }), []);   // pixel only matters for Meta
   assert.deepEqual(websiteNotes({ business: { website: 'x.com' }, signals: { ...sig, pixel: true }, cfg, platform: 'Instagram' }), []);
+});
+
+test('fetch errors are classified without blaming the site', () => {
+  assert.equal(classifyFetchError(new Error('Site returned 403')), 'blocked');
+  assert.equal(classifyFetchError(new Error('Not an HTML page')), 'blocked');
+  assert.equal(classifyFetchError(new Error('Site returned 503')), 'error');
+  assert.equal(classifyFetchError(Object.assign(new Error('getaddrinfo ENOTFOUND x'), { code: 'ENOTFOUND' })), 'dns');
+  assert.equal(classifyFetchError(new Error('Site took too long to respond')), 'timeout');
+  assert.equal(classifyFetchError(new Error('???')), 'other');
 });
 
 test('sanitizeBrief clamps ages, trims and drops junk', () => {

@@ -16,7 +16,19 @@ export function siteSignals(html, url = '') {
     contact: /href=["']tel:|href=["']mailto:|<form[\s>]|wa\.me\/|api\.whatsapp\.com/i.test(html),
     viewport: /<meta[^>]+name=["']viewport["']/i.test(html),
     textLen: text.length,
+    // Content is rendered by JavaScript, so raw HTML says little about the real page.
+    spa: text.length < 400 && /id=["'](root|app|__next|__nuxt)["']|<noscript>[^<]*enable javascript/i.test(html),
   };
+}
+
+// Why a fetch failed, without claiming the site is down when we were merely blocked.
+export function classifyFetchError(e) {
+  const m = String(e?.message || '');
+  if (/returned (401|403|429)|Not an HTML/i.test(m)) return 'blocked';
+  if (/returned 5\d\d/i.test(m)) return 'error';
+  if (/ENOTFOUND|EAI_AGAIN/i.test(m) || e?.code === 'ENOTFOUND') return 'dns';
+  if (/took too long|ETIMEDOUT|ECONNRESET|ECONNREFUSED/i.test(m)) return 'timeout';
+  return 'other';
 }
 
 export function websiteNotes({ business: b = {}, signals, cfg, platform = '' }) {
@@ -25,9 +37,15 @@ export function websiteNotes({ business: b = {}, signals, cfg, platform = '' }) 
   if (!b.website) {
     return [`You do not have a website yet. Ads need somewhere to send people: a page with your offer, prices and a way to contact or book you.${help}`];
   }
-  if (!signals || signals.ok === false) {
-    return [`We could not open your website (${b.website}). Check that it is online, because ads send people there.${help}`];
+  if (!signals) return [];     // not checked yet
+  if (signals.ok === false) {
+    if (signals.reason === 'dns') return [`We could not find your website address (${b.website}). Check that the domain is spelled correctly and is active.${help}`];
+    if (signals.reason === 'timeout') return [`Your website (${b.website}) did not answer in time when we checked. If it is often slow or offline, ad visitors will leave.${help}`];
+    if (signals.reason === 'error') return [`Your website (${b.website}) returned a server error when we checked. If this keeps happening, fix it before spending on ads.${help}`];
+    // blocked / unknown: we do NOT know that anything is wrong
+    return [`We could not check your website automatically (it may block automated visitors). This does not mean it is down. Before launching, open it on your phone and make sure the Meta Pixel is installed (use the "Meta Pixel Helper" browser extension).`];
   }
+  if (signals.spa) return [`Your website loads its content with JavaScript, so our automatic check can only see part of it. Before launching, open it on your phone and verify the contact button, mobile layout and Meta Pixel (use the "Meta Pixel Helper" extension).`];
   if (!signals.https) notes.push(`Your website address does not start with https://, so browsers may warn visitors. Ads that lead to such pages perform worse.${help}`);
   if (!signals.viewport) notes.push(`Your website does not seem to be set up for mobile phones, where most Instagram and Facebook visitors come from.${help}`);
   if (!signals.contact) notes.push(`We found no clear way to contact or book you on the page (phone, email, WhatsApp or a form). Visitors from ads need one.${help}`);

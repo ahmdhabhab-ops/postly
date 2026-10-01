@@ -13,7 +13,7 @@ import { assistantReply, detectCampaignRequest, buildAssistantContext } from './
 import { fetchPublicPage, parsePublicUrl, FetchBlockedError } from './safefetch.js';
 import { analyzeCompetitor, buildStats, writeReport, discoverCompetitors } from './insights.js';
 import { extractPage } from './safefetch.js';
-import { generateBrief, siteSignals, websiteNotes, sanitizeBrief } from './brief.js';
+import { generateBrief, siteSignals, websiteNotes, sanitizeBrief, classifyFetchError } from './brief.js';
 
 const EMAIL = /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/;
 const CHANNELS = ['Instagram', 'Facebook', 'Meta Ads', 'TikTok', 'Google Business Profile', 'ChatGPT Ads', 'WhatsApp'];
@@ -272,8 +272,8 @@ export function createApp(cfg, { pool, wa = createWhatsAppClient(cfg.whatsapp), 
       business.site_text = `${p.title}. ${p.description}. ${p.text}`.slice(0, 4000);
       business.site_signals = JSON.stringify(siteSignals(html, url));
       await pool.query('update businesses set site_text=$2, site_signals=$3, site_fetched_at=now() where user_id=$1', [userId, business.site_text, business.site_signals]);
-    } catch {
-      business.site_signals = JSON.stringify({ ok: false });
+    } catch (e) {
+      business.site_signals = JSON.stringify({ ok: false, reason: classifyFetchError(e) });
       await pool.query('update businesses set site_signals=$2, site_fetched_at=now() where user_id=$1', [userId, business.site_signals]);
     }
   }
