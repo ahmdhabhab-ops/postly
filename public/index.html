@@ -1045,14 +1045,14 @@ input:focus,select:focus,textarea:focus{outline:none; border-color:var(--violet)
 
     <div class="onb-step" data-step="5">
       <h2>Connect your marketing channels.</h2>
-      <p class="hint">Skip any of these for now — you can connect them later.</p>
+      <p class="hint">Channel connections are coming soon — you can skip this step.</p>
       <div class="panel" style="margin-bottom:24px;">
-        <div class="channel-row"><div class="channel-name"><span class="ch-icon">IG</span><div>Instagram<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" onclick="connectChannel(this,'Instagram')">Connect</button></div>
-        <div class="channel-row"><div class="channel-name"><span class="ch-icon">FB</span><div>Facebook<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" onclick="connectChannel(this,'Facebook')">Connect</button></div>
-        <div class="channel-row"><div class="channel-name"><span class="ch-icon"><svg class="i" style="width:15px;height:15px;"><use href="#i-target"/></svg></span><div>Meta Ads<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" onclick="connectChannel(this,'Meta Ads')">Connect</button></div>
-        <div class="channel-row"><div class="channel-name"><span class="ch-icon">TT</span><div>TikTok<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" onclick="connectChannel(this,'TikTok')">Connect</button></div>
-        <div class="channel-row"><div class="channel-name"><span class="ch-icon"><svg class="i" style="width:15px;height:15px;"><use href="#i-orbit"/></svg></span><div>Google Business Profile<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" onclick="connectChannel(this,'Google Business Profile')">Connect</button></div>
-        <div class="channel-row"><div class="channel-name"><span class="ch-icon" style="font-size:9px;">GPT</span><div>ChatGPT Ads<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" onclick="connectChannel(this,'ChatGPT Ads')">Connect</button></div>
+        <div class="channel-row"><div class="channel-name"><span class="ch-icon">IG</span><div>Instagram<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" disabled title="Coming soon" onclick="connectChannel(this,\'Instagram\')">Coming soon</button></div>
+        <div class="channel-row"><div class="channel-name"><span class="ch-icon">FB</span><div>Facebook<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" disabled title="Coming soon" onclick="connectChannel(this,\'Facebook\')">Coming soon</button></div>
+        <div class="channel-row"><div class="channel-name"><span class="ch-icon"><svg class="i" style="width:15px;height:15px;"><use href="#i-target"/></svg></span><div>Meta Ads<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" disabled title="Coming soon" onclick="connectChannel(this,\'Meta Ads\')">Coming soon</button></div>
+        <div class="channel-row"><div class="channel-name"><span class="ch-icon">TT</span><div>TikTok<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" disabled title="Coming soon" onclick="connectChannel(this,\'TikTok\')">Coming soon</button></div>
+        <div class="channel-row"><div class="channel-name"><span class="ch-icon"><svg class="i" style="width:15px;height:15px;"><use href="#i-orbit"/></svg></span><div>Google Business Profile<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" disabled title="Coming soon" onclick="connectChannel(this,\'Google Business Profile\')">Coming soon</button></div>
+        <div class="channel-row"><div class="channel-name"><span class="ch-icon" style="font-size:9px;">GPT</span><div>ChatGPT Ads<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" disabled title="Coming soon" onclick="connectChannel(this,\'ChatGPT Ads\')">Coming soon</button></div>
       </div>
       <div class="onb-nav"><button class="btn btn-ghost" onclick="onbBack(5)">Back</button><button class="btn btn-primary" id="onbFinishBtn" onclick="onbFinish()">Build My Marketing Plan</button></div>
     </div>
@@ -1279,12 +1279,13 @@ input:focus,select:focus,textarea:focus{outline:none; border-color:var(--violet)
         </div>
         <div class="panel">
           <h3>Connected accounts</h3>
-          <div class="channel-row"><div class="channel-name"><span class="ch-icon">IG</span><div>Instagram<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" onclick="connectChannel(this,'Instagram')">Connect</button></div>
-          <div class="channel-row"><div class="channel-name"><span class="ch-icon">FB</span><div>Facebook<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" onclick="connectChannel(this,'Facebook')">Connect</button></div>
-          <div class="channel-row"><div class="channel-name"><span class="ch-icon"><svg class="i" style="width:15px;height:15px;"><use href="#i-target"/></svg></span><div>Meta Ads<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" onclick="connectChannel(this,'Meta Ads')">Connect</button></div>
-          <div class="channel-row"><div class="channel-name"><span class="ch-icon">TT</span><div>TikTok<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" onclick="connectChannel(this,'TikTok')">Connect</button></div>
-          <div class="channel-row"><div class="channel-name"><span class="ch-icon"><svg class="i" style="width:15px;height:15px;"><use href="#i-orbit"/></svg></span><div>Google Business Profile<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" onclick="connectChannel(this,'Google Business Profile')">Connect</button></div>
-        <div class="channel-row"><div class="channel-name"><span class="ch-icon" style="font-size:9px;">GPT</span><div>ChatGPT Ads<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" onclick="connectChannel(this,'ChatGPT Ads')">Connect</button></div>
+          <p style="color:var(--text-dim); font-size:13.5px; margin-bottom:8px;">Channel connections are coming soon. We will let you know when each one is ready.</p>
+          <div class="channel-row"><div class="channel-name"><span class="ch-icon">IG</span><div>Instagram<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" disabled title="Coming soon" onclick="connectChannel(this,\'Instagram\')">Coming soon</button></div>
+          <div class="channel-row"><div class="channel-name"><span class="ch-icon">FB</span><div>Facebook<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" disabled title="Coming soon" onclick="connectChannel(this,\'Facebook\')">Coming soon</button></div>
+          <div class="channel-row"><div class="channel-name"><span class="ch-icon"><svg class="i" style="width:15px;height:15px;"><use href="#i-target"/></svg></span><div>Meta Ads<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" disabled title="Coming soon" onclick="connectChannel(this,\'Meta Ads\')">Coming soon</button></div>
+          <div class="channel-row"><div class="channel-name"><span class="ch-icon">TT</span><div>TikTok<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" disabled title="Coming soon" onclick="connectChannel(this,\'TikTok\')">Coming soon</button></div>
+          <div class="channel-row"><div class="channel-name"><span class="ch-icon"><svg class="i" style="width:15px;height:15px;"><use href="#i-orbit"/></svg></span><div>Google Business Profile<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" disabled title="Coming soon" onclick="connectChannel(this,\'Google Business Profile\')">Coming soon</button></div>
+        <div class="channel-row"><div class="channel-name"><span class="ch-icon" style="font-size:9px;">GPT</span><div>ChatGPT Ads<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" disabled title="Coming soon" onclick="connectChannel(this,\'ChatGPT Ads\')">Coming soon</button></div>
         </div>
         <div class="panel" id="waPanel" style="display:none;">
           <h3>Send a WhatsApp message</h3>
@@ -1602,26 +1603,9 @@ function applyChannel(platform, label){
     }
   });
 }
-async function loadChannels(){
-  try{
-    const r = await api('GET','/channels');
-    document.querySelectorAll('.channel-row').forEach(row=>applyChannel(platformOfRow(row), null));
-    r.channels.forEach(c=>applyChannel(c.platform, c.account_label));
-  }catch(e){}
-}
-async function connectChannel(btn, platform){
-  try{
-    if(btn.classList.contains('btn-connected')){
-      await api('PUT','/channels/'+encodeURIComponent(platform),{connected:false});
-      applyChannel(platform, null);
-      return;
-    }
-    const label = window.prompt('Account name or handle for ' + platform + ':');
-    if(label === null) return;
-    await api('PUT','/channels/'+encodeURIComponent(platform),{accountLabel: label});
-    applyChannel(platform, label.trim());
-    showToast(platform + ' saved. Live syncing starts when this integration goes live.');
-  }catch(e){ showToast(e.message); }
+function loadChannels(){}
+function connectChannel(btn, platform){
+  showToast(platform + ' integration is coming soon.');
 }
 
 /* ---------- settings ---------- */
