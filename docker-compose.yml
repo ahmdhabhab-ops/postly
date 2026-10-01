@@ -1,0 +1,15 @@
+services:
+  web:
+    build: .
+    expose:
+      - "3000"              # Dokploy/Traefik routes the domain to this port (Domains tab -> service web, port 3000)
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  api:
+    build: ./api
+    env_file: .env          # holds WHATSAPP_ACCESS_TOKEN etc. Never baked into the image, never sent to the browser.
+    expose:
+      - "4000"              # internal only: no host port, only nginx can reach it
+    restart: unless-stopped

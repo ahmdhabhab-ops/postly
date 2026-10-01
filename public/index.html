@@ -1,0 +1,1567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Postly — Your AI Marketing Department</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg: #1C1A22;
+  --bg-raised: #272430;
+  --surface: rgba(59,54,70,0.6);
+  --surface-solid: #33303D;
+  --surface-2: rgba(255,255,255,0.08);
+  --border: rgba(255,255,255,0.13);
+  --border-strong: rgba(255,255,255,0.26);
+  --border-glow: rgba(245,181,68,0.55);
+  --text: #FFFFFF;
+  --text-dim: #C9C3D2;
+  --text-faint: #948DA3;
+  --violet: #F5B544;
+  --violet-dim: #C08722;
+  --cyan: #FFD79A;
+  --blue: #FF8A6B;
+  --green: #5FEDBA;
+  --amber: #FFCC7A;
+  --red: #FF9494;
+  --grad: linear-gradient(135deg, #F5B544 0%, #FF8A6B 60%, #FFD79A 100%);
+  --grad-line: linear-gradient(90deg, transparent, rgba(245,181,68,0.85), rgba(255,138,107,0.7), transparent);
+  --hover-tint: rgba(255,255,255,0.045);
+  --grid-line: rgba(255,255,255,0.05);
+  --pill-tint: rgba(255,255,255,0.03);
+  --nav-bg: rgba(28,26,34,0.76);
+  --radius-sm: 10px;
+  --radius-md: 18px;
+  --radius-lg: 28px;
+  --font-display: 'Sora', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --sp: 1;
+}
+:root[data-theme="light"]{
+  --bg: #FAF7F2;
+  --bg-raised: #F1EAE0;
+  --surface: rgba(255,255,255,0.75);
+  --surface-solid: #FFFFFF;
+  --surface-2: rgba(31,22,8,0.05);
+  --border: rgba(31,22,8,0.1);
+  --border-strong: rgba(31,22,8,0.18);
+  --border-glow: rgba(214,140,30,0.5);
+  --text: #241A0C;
+  --text-dim: #5C4E3C;
+  --text-faint: #8C7C64;
+  --violet: #D6821E;
+  --violet-dim: #B06A16;
+  --cyan: #E08A50;
+  --blue: #E0623A;
+  --green: #1E9E68;
+  --amber: #C77A12;
+  --red: #D6403C;
+  --grad: linear-gradient(135deg, #E0952E 0%, #E0623A 60%, #F0AE5A 100%);
+  --grad-line: linear-gradient(90deg, transparent, rgba(224,149,46,0.7), rgba(224,98,58,0.55), transparent);
+  --hover-tint: rgba(31,22,8,0.045);
+  --grid-line: rgba(31,22,8,0.04);
+  --pill-tint: rgba(31,22,8,0.03);
+  --nav-bg: rgba(250,247,242,0.82);
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+#ai-team, #how, #competitors, #pricing, #ai-search{scroll-margin-top:96px;}
+body{
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  line-height: 1.6;
+  overflow-x: hidden;
+}
+img,svg{display:block;}
+a{color:inherit;text-decoration:none;}
+button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit;}
+input,select,textarea{font-family:inherit;}
+::selection{background:var(--violet-dim);}
+
+.i{width:18px; height:18px; stroke:currentColor; fill:none; stroke-width:1.35; stroke-linecap:round; stroke-linejoin:round; display:inline-block; vertical-align:middle; flex-shrink:0;}
+.theme-toggle{
+  width:40px; height:40px; border-radius:50%; border:1px solid var(--border-strong);
+  display:flex; align-items:center; justify-content:center; color:var(--text-dim); flex-shrink:0;
+  transition:background .15s ease, color .15s ease;
+}
+.theme-toggle:hover{background:var(--hover-tint); color:var(--text);}
+.theme-icon-dark{display:none;}
+:root[data-theme="light"] .theme-icon-light{display:none;}
+:root[data-theme="light"] .theme-icon-dark{display:block;}
+
+#starfield{position:fixed; inset:0; z-index:0; pointer-events:none; opacity:0.75;}
+:root[data-theme="light"] #starfield{opacity:0.12;}
+
+.bg-field{
+  position:fixed; inset:0; z-index:0; pointer-events:none;
+  background:
+    radial-gradient(1000px 800px at 88% -8%, rgba(245,181,68,0.3), transparent 62%),
+    radial-gradient(800px 700px at -5% 15%, rgba(255,138,107,0.26), transparent 62%),
+    radial-gradient(700px 600px at 50% 100%, rgba(255,215,154,0.16), transparent 62%),
+    radial-gradient(600px 600px at 20% 70%, rgba(245,181,68,0.2), transparent 65%),
+    radial-gradient(500px 500px at 80% 60%, rgba(255,138,107,0.18), transparent 65%),
+    repeating-linear-gradient(0deg, var(--grid-line) 0px, var(--grid-line) 1px, transparent 1px, transparent 96px),
+    repeating-linear-gradient(90deg, var(--grid-line) 0px, var(--grid-line) 1px, transparent 1px, transparent 96px);
+}
+:root[data-theme="light"] .bg-field{opacity:0.5;}
+.bg-field::after{
+  content:''; position:absolute; top:0; left:0; right:0; height:1px;
+  background:var(--grad-line); opacity:0.6;
+}
+
+.wrap{max-width:1320px; margin:0 auto; padding:0 48px;}
+@media (max-width:900px){.wrap{padding:0 24px;}}
+
+h1,h2,h3,h4{font-family:var(--font-display); font-weight:700; letter-spacing:-0.01em; line-height:1.08;}
+
+/* ============ NAV ============ */
+.nav{
+  position:sticky; top:0; z-index:50;
+  display:flex; align-items:center; justify-content:space-between;
+  padding:24px 48px; backdrop-filter: blur(20px);
+  background: var(--nav-bg);
+  border-bottom:1px solid var(--border);
+}
+@media (max-width:900px){.nav{padding:20px 24px;}}
+.nav-logo{display:flex; align-items:center; gap:10px; font-family:var(--font-display); font-weight:700; font-size:19px;}
+.nav-logo .dot{width:9px;height:9px;border-radius:50%;background:var(--grad); box-shadow:0 0 14px rgba(245,181,68,0.8);}
+.shine-text{
+  background:linear-gradient(100deg, var(--text) 40%, #FFF6E0 50%, var(--text) 60%);
+  background-size:250% 100%;
+  -webkit-background-clip:text; background-clip:text; color:transparent;
+  animation:textShine 4s ease-in-out infinite;
+}
+@keyframes textShine{
+  0%{ background-position:180% 0; }
+  55%{ background-position:-80% 0; }
+  100%{ background-position:-80% 0; }
+}
+.nav-links{display:flex; gap:32px; font-size:14.5px; color:var(--text-dim);}
+.nav-links a:hover{color:var(--text);}
+.nav-actions{display:flex; align-items:center; gap:14px;}
+.nav-mobile-hide{display:flex;}
+@media (max-width:860px){.nav-links{display:none;}}
+
+.btn{
+  display:inline-flex; align-items:center; justify-content:center; gap:8px;
+  padding:11px 22px; border-radius:100px; font-size:14.5px; font-weight:600;
+  transition:transform .15s ease, opacity .15s ease, box-shadow .15s ease;
+  white-space:nowrap;
+}
+.btn:active{transform:scale(0.97);}
+.btn-primary{background:var(--grad); color:#1F1608; box-shadow:0 4px 20px rgba(245,181,68,0.32);}
+.btn-primary:hover{box-shadow:0 8px 28px rgba(124,92,255,0.4);}
+.btn-ghost{color:var(--text); border:1px solid var(--border-strong);}
+.btn-berry{
+  position:relative; overflow:hidden; isolation:isolate;
+  background:linear-gradient(135deg, #8E2255 0%, #C93B6B 55%, #E85C8A 100%);
+  color:#FFF0F4; box-shadow:0 4px 28px rgba(200,50,110,0.35);
+}
+.btn-berry:hover{box-shadow:0 8px 38px rgba(200,50,110,0.5);}
+.btn-berry::after{
+  content:''; position:absolute; top:0; left:-60%; width:40%; height:100%;
+  background:linear-gradient(115deg, transparent 0%, rgba(255,255,255,0.55) 50%, transparent 100%);
+  transform:skewX(-20deg); animation:shineSweep 3.2s ease-in-out infinite;
+}
+@keyframes shineSweep{
+  0%{ left:-60%; }
+  35%{ left:130%; }
+  100%{ left:130%; }
+}
+.btn-ghost:hover{background:rgba(23,12,50,0.045);}
+.btn-text{color:var(--text-dim); padding:11px 8px;}
+.btn-text:hover{color:var(--text);}
+.btn-block{width:100%;}
+.btn-sm{padding:8px 16px; font-size:13.5px;}
+.btn[disabled]{opacity:0.4; cursor:not-allowed;}
+
+/* ============ HERO ============ */
+.hero{padding:140px 0 96px; position:relative;}
+.hero-inner{max-width:780px;}
+.hero .eyebrow{
+  display:inline-flex; align-items:center; gap:9px; font-size:13px; color:var(--text-dim);
+  border:1px solid var(--border-strong); padding:8px 16px; border-radius:100px; margin-bottom:40px;
+  font-family:var(--font-display); letter-spacing:0.01em; background:var(--pill-tint);
+}
+.hero .eyebrow .pulse{width:6px;height:6px;border-radius:50%;background:var(--green); box-shadow:0 0 10px var(--green); animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:0.35;}}
+.hero h1{font-size:clamp(42px,7vw,76px); margin-bottom:28px;}
+.hero p.sub{font-size:18.5px; color:var(--text-dim); max-width:540px; margin-bottom:44px;}
+.hero-cta{display:flex; gap:14px; margin-bottom:72px; flex-wrap:wrap;}
+.hero-cta .btn-primary{padding:15px 28px; font-size:15.5px;}
+.hero-cta .btn-ghost{padding:15px 28px; font-size:15.5px;}
+.hero-cta .btn-berry{padding:15px 28px; font-size:15.5px;}
+
+.goal-picker{
+  display:flex; flex-wrap:wrap; gap:10px; max-width:680px;
+}
+.goal-chip{
+  padding:10px 18px; border-radius:100px; border:1px solid var(--border-strong);
+  font-size:14px; color:var(--text-dim); transition:all .15s ease;
+}
+.goal-chip:hover, .goal-chip.active{
+  border-color:var(--violet); color:var(--text); background:rgba(245,181,68,0.12);
+}
+
+/* neural / orbit hero visual */
+.neural-wrap{
+  position:absolute; top:20px; right:-60px; width:440px; height:440px; z-index:-1;
+  display:flex; align-items:center; justify-content:center;
+}
+@media (max-width:1000px){.neural-wrap{display:none;}}
+.neural-svg{width:100%; height:100%; overflow:visible;}
+.orbit-path{fill:none; stroke:var(--border-strong); stroke-width:1; transform-origin:220px 220px; animation:spin 46s linear infinite;}
+@keyframes spin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
+.neural-lines line{stroke:url(#coreGrad); stroke:rgba(245,181,68,0.3); stroke-width:1; stroke-dasharray:3 4;}
+.neural-nodes circle{fill:#FFD9B0; filter:drop-shadow(0 0 6px rgba(245,181,68,0.8));}
+.neural-core{filter:drop-shadow(0 0 50px rgba(245,181,68,0.55)) drop-shadow(0 0 90px rgba(255,138,107,0.18)); animation:corepulse 3.4s ease-in-out infinite; transform-box:fill-box; transform-origin:center;}
+@keyframes corepulse{0%,100%{transform:scale(1);}50%{transform:scale(1.07);}}
+.neural-label{
+  position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+  font-family:var(--font-display); font-weight:800; font-size:11px; letter-spacing:0.14em;
+  color:#1F1608; pointer-events:none;
+}
+.deco-moon{
+  position:absolute; top:14px; right:38px; width:44px; height:44px; border-radius:50%;
+  background:radial-gradient(circle at 35% 30%, #EDEBF9, #ACA8CC 58%, #6E6A94 100%);
+  box-shadow:0 0 26px rgba(255,225,195,0.4), inset -9px -5px 12px rgba(0,0,0,0.35);
+}
+.deco-moon::after{
+  content:''; position:absolute; top:-4px; left:13px; width:44px; height:44px; border-radius:50%;
+  background:var(--bg); box-shadow:0 0 18px 8px var(--bg);
+}
+.deco-rocket{
+  position:absolute; top:68px; right:6px; width:24px; height:24px;
+  stroke:var(--text-dim); transform:rotate(38deg); opacity:0.85;
+}
+
+/* ===== Cinematic hero space scene ===== */
+.space-scene{
+  position:absolute; top:-16px; right:-20px; width:480px; height:600px; z-index:-1;
+}
+@media (max-width:1050px){.space-scene{display:none;}}
+.scene-panel{
+  width:100%; height:100%; border-radius:36px; overflow:hidden; position:relative;
+  background: radial-gradient(120% 100% at 28% 18%, #3A2A36 0%, #241C26 45%, #0D0A10 100%);
+  box-shadow: 0 50px 130px rgba(0,0,0,0.55), inset 0 0 0 1px rgba(255,255,255,0.07), 0 0 90px rgba(245,181,68,0.12);
+}
+.scene-panel svg{width:100%; height:100%; display:block;}
+.scene-orbit{fill:none; stroke:rgba(255,255,255,0.09); stroke-width:1;}
+.scene-ring{fill:none; stroke:rgba(245,181,68,0.4); stroke-width:1.4;}
+.scene-sparkle{fill:#F4F2FF; opacity:0.75;}
+.scene-rocket{transform-box:fill-box; transform-origin:center; animation:rocketFloat 6.5s ease-in-out infinite;}
+@keyframes rocketFloat{
+  0%,100%{ transform: rotate(-34deg) translateY(0); }
+  50%{ transform: rotate(-32deg) translateY(-10px); }
+}
+.scene-flame{transform-box:fill-box; transform-origin:center top; animation:flameFlicker 1.3s ease-in-out infinite;}
+@keyframes flameFlicker{
+  0%,100%{ transform: scaleY(1); opacity:0.85; }
+  50%{ transform: scaleY(1.22); opacity:1; }
+}
+.scene-astronaut{transform-box:fill-box; transform-origin:center; animation:astroFloat 8s ease-in-out infinite;}
+@keyframes astroFloat{
+  0%,100%{ transform: translateY(0) rotate(0deg); }
+  50%{ transform: translateY(8px) rotate(3deg); }
+}
+.scene-trail{fill:none; stroke:rgba(245,181,68,0.3); stroke-width:1.4; stroke-dasharray:2 7; stroke-linecap:round;}
+.scene-caption{
+  position:absolute; left:28px; bottom:26px; font-family:var(--font-display); font-size:12.5px;
+  color:rgba(255,255,255,0.55); letter-spacing:0.02em;
+}
+.scene-caption b{color:#fff; font-weight:600;}
+
+/* ============ SECTION SHARED ============ */
+.section{padding:150px 0;}
+.section-head{max-width:600px; margin-bottom:76px;}
+.section-head .tag{color:var(--violet); font-size:13.5px; font-weight:600; margin-bottom:18px; display:block; letter-spacing:0.02em;}
+.section-head h2{font-size:clamp(30px,4.2vw,44px); margin-bottom:18px;}
+.section-head p{color:var(--text-dim); font-size:16.5px;}
+.divider{height:1px; background:var(--grad-line); opacity:0.5;}
+
+/* glass surface shared across cards */
+.team-card,.price-card,.panel,.preview-card,.metric-card,.campaign-card,.chat-shell,.autopilot-visual,.side-avatar{
+  backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+}
+.team-card,.price-card,.panel,.preview-card,.metric-card,.campaign-card,.chat-shell{
+  position:relative;
+}
+.team-card::before,.price-card::before,.preview-card::before{
+  content:''; position:absolute; inset:0; border-radius:inherit; padding:1px;
+  background:linear-gradient(160deg, rgba(255,255,255,0.14), rgba(255,255,255,0) 40%);
+  -webkit-mask:linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite:xor; mask-composite:exclude;
+  pointer-events:none;
+}
+
+/* AI Team */
+.team-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:20px;}
+@media (max-width:860px){.team-grid{grid-template-columns:1fr 1fr;}}
+@media (max-width:560px){.team-grid{grid-template-columns:1fr;}}
+.team-card{
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-md);
+  padding:34px; transition:border-color .2s ease, transform .2s ease, box-shadow .2s ease;
+}
+.team-card:hover{border-color:var(--border-glow); transform:translateY(-4px); box-shadow:0 20px 44px rgba(90,60,180,0.14);}
+.team-card .icon{width:44px;height:44px;border-radius:12px; background:var(--surface-2); border:1px solid var(--border); display:flex;align-items:center;justify-content:center; font-size:19px; margin-bottom:22px;}
+.team-card h4{font-size:17px; margin-bottom:10px;}
+.team-card p{font-size:14.5px; color:var(--text-dim);}
+
+/* How it works */
+.steps{display:flex; flex-direction:column; gap:0;}
+.step-row{display:flex; gap:32px; padding:36px 0; border-top:1px solid var(--border); transition:padding-left .2s ease;}
+.step-row:hover{padding-left:10px;}
+.step-row:last-child{border-bottom:1px solid var(--border);}
+.step-num{font-family:var(--font-display); font-size:14px; color:var(--violet); width:64px; flex-shrink:0; padding-top:2px;}
+.step-body h4{font-size:18px; margin-bottom:8px;}
+.step-body p{color:var(--text-dim); font-size:15px; max-width:520px;}
+
+/* Execution split */
+.exec-grid{display:grid; grid-template-columns:1fr 1fr; gap:40px; align-items:center;}
+@media (max-width:800px){.exec-grid{grid-template-columns:1fr;}}
+.exec-compare{display:flex; flex-direction:column; gap:14px;}
+.exec-line{display:flex; align-items:center; gap:12px; padding:16px 18px; border-radius:var(--radius-sm); font-size:14.5px;}
+.exec-line.no{background:rgba(255,107,107,0.06); border:1px solid rgba(255,107,107,0.18); color:var(--text-dim);}
+.exec-line.yes{background:rgba(62,217,160,0.08); border:1px solid rgba(62,217,160,0.25); color:var(--text);}
+.exec-line .mark{width:20px; text-align:center; flex-shrink:0;}
+
+/* Autopilot */
+.autopilot-card{
+  background:linear-gradient(180deg, var(--surface) 0%, var(--bg-raised) 100%);
+  border:1px solid var(--border-glow); border-radius:var(--radius-lg); padding:56px;
+  display:grid; grid-template-columns:1.1fr 1fr; gap:48px;
+  box-shadow:0 0 80px rgba(245,181,68,0.12);
+  backdrop-filter:blur(24px);
+}
+@media (max-width:800px){.autopilot-card{grid-template-columns:1fr;}}
+.toggle-row{display:flex; align-items:center; gap:14px; margin-bottom:20px;}
+.toggle{width:46px;height:26px;border-radius:100px; background:var(--green); position:relative; flex-shrink:0;}
+.toggle::after{content:'';position:absolute; width:20px;height:20px;border-radius:50%;background:#08210f; top:3px; right:3px;}
+.autopilot-list{display:flex; flex-direction:column; gap:10px; font-size:14.5px; color:var(--text-dim);}
+.autopilot-list div{display:flex; align-items:center; gap:10px;}
+.autopilot-visual{background:var(--bg); border:1px solid var(--border); border-radius:var(--radius-md); padding:20px;}
+
+/* Pricing */
+.pricing-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:20px; align-items:stretch;}
+@media (max-width:1000px){.pricing-grid{grid-template-columns:1fr 1fr;}}
+@media (max-width:600px){.pricing-grid{grid-template-columns:1fr;}}
+.price-card{
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-md);
+  padding:36px; display:flex; flex-direction:column; position:relative; transition:transform .2s ease, border-color .2s ease;
+}
+.price-card:hover{transform:translateY(-4px); border-color:var(--border-strong);}
+.price-card.popular{border-color:var(--violet); background:linear-gradient(180deg, rgba(245,181,68,0.12), var(--surface) 45%); box-shadow:0 0 0 1px var(--violet), 0 30px 80px rgba(245,181,68,0.22);}
+.price-badge{
+  position:absolute; top:-13px; left:28px; background:var(--grad); color:#1F1608;
+  font-size:11.5px; font-weight:700; padding:5px 12px; border-radius:100px;
+}
+.price-card .plan-name{font-size:14px; color:var(--text-dim); margin-bottom:14px; font-weight:600;}
+.price-old{color:var(--text-faint); text-decoration:line-through; font-size:15px; margin-bottom:2px;}
+.price-now{font-family:var(--font-display); font-size:34px; font-weight:700; margin-bottom:4px;}
+.price-now span{font-size:14px; font-weight:500; color:var(--text-dim);}
+.price-custom{font-family:var(--font-display); font-size:28px; margin:8px 0 4px;}
+.price-feats{list-style:none; margin:22px 0 26px; display:flex; flex-direction:column; gap:11px; flex-grow:1;}
+.price-feats li{font-size:13.5px; color:var(--text-dim); display:flex; gap:9px; align-items:flex-start;}
+.price-feats li .ck{color:var(--green); flex-shrink:0; margin-top:1px;}
+.price-note{text-align:center; color:var(--text-faint); font-size:13.5px; margin-top:28px;}
+
+/* Competitors / AI Search preview cards */
+.split-preview{display:grid; grid-template-columns:1fr 1fr; gap:20px;}
+@media (max-width:800px){.split-preview{grid-template-columns:1fr;}}
+.preview-card{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-md); padding:28px;}
+.preview-card h4{font-size:17px; margin-bottom:6px;}
+.preview-card p{font-size:14px; color:var(--text-dim); margin-bottom:20px;}
+.score-ring-mini{display:flex; align-items:center; gap:16px; margin-bottom:18px;}
+.score-num{font-family:var(--font-display); font-size:30px; font-weight:700;}
+.mini-bar-row{display:flex; justify-content:space-between; font-size:13px; color:var(--text-dim); margin-bottom:6px;}
+.mini-bar{height:6px; border-radius:4px; background:var(--surface-2); overflow:hidden; margin-bottom:14px;}
+.mini-bar > div{height:100%; background:var(--grad);}
+.comp-row{display:flex; justify-content:space-between; align-items:center; padding:11px 0; border-top:1px solid var(--border); font-size:13.5px;}
+.comp-row:first-child{border-top:none;}
+.comp-tag{font-size:11.5px; padding:3px 9px; border-radius:100px; background:var(--surface-2); color:var(--text-dim);}
+
+/* Footer */
+.footer{border-top:1px solid var(--border); padding:48px 0 32px;}
+.footer-top{display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:36px; flex-wrap:wrap; gap:24px;}
+.footer-tag{max-width:340px; color:var(--text-dim); font-size:14px; margin-top:10px;}
+.footer-cols{display:flex; gap:64px;}
+.footer-col h5{font-size:13px; color:var(--text-faint); margin-bottom:14px; font-weight:600;}
+.footer-col a{display:block; font-size:14px; color:var(--text-dim); margin-bottom:10px;}
+.footer-bottom{display:flex; justify-content:space-between; color:var(--text-faint); font-size:13px; padding-top:24px; border-top:1px solid var(--border); flex-wrap:wrap; gap:10px;}
+
+/* ============ MODAL / OVERLAY SCREENS ============ */
+.screen{
+  position:fixed; inset:0; background:var(--bg); z-index:200;
+  overflow-y:auto; display:none;
+}
+.screen.active{display:block;}
+.auth-shell{
+  min-height:100%; display:flex; align-items:center; justify-content:center; padding:40px 20px; position:relative;
+}
+.auth-close{position:absolute; top:28px; left:32px; display:flex; align-items:center; gap:10px; font-size:14px; color:var(--text-dim);}
+.auth-close:hover{color:var(--text);}
+.auth-box{width:100%; max-width:420px;}
+.auth-box .nav-logo{margin-bottom:36px; justify-content:center;}
+.auth-box h2{font-size:26px; text-align:center; margin-bottom:8px;}
+.auth-box p.sub-center{text-align:center; color:var(--text-dim); font-size:14.5px; margin-bottom:32px;}
+.field-group{margin-bottom:16px;}
+.field-row2{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+label{display:block; font-size:13px; color:var(--text-dim); margin-bottom:7px; font-weight:500;}
+input[type=text],input[type=email],input[type=password],input[type=tel],select,textarea{
+  width:100%; background:var(--surface); border:1px solid var(--border-strong); border-radius:var(--radius-sm);
+  padding:12px 14px; color:var(--text); font-size:14.5px; transition:border-color .15s ease;
+}
+input:focus,select:focus,textarea:focus{outline:none; border-color:var(--violet);}
+.auth-foot{text-align:center; margin-top:22px; font-size:14px; color:var(--text-dim);}
+.auth-foot a{color:var(--violet); font-weight:600;}
+.auth-check{display:flex; align-items:center; justify-content:space-between; margin:18px 0; font-size:13.5px; color:var(--text-dim);}
+
+/* ============ ONBOARDING ============ */
+.onb-shell{max-width:600px; margin:0 auto; padding:64px 20px 60px;}
+.onb-progress{display:flex; gap:6px; margin-bottom:44px;}
+.onb-progress div{height:3px; flex:1; background:var(--border); border-radius:3px; overflow:hidden;}
+.onb-progress div span{display:block; height:100%; background:var(--grad); width:0%; transition:width .3s ease;}
+.onb-progress div.done span{width:100%;}
+.onb-progress div.current span{width:100%;}
+.onb-step{display:none;}
+.onb-step.active{display:block; animation:fadein .3s ease;}
+@keyframes fadein{from{opacity:0; transform:translateY(6px);}to{opacity:1; transform:translateY(0);}}
+.onb-step h2{font-size:28px; margin-bottom:10px;}
+.onb-step p.hint{color:var(--text-dim); font-size:14.5px; margin-bottom:32px;}
+.choice-grid{display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:28px;}
+@media (max-width:480px){.choice-grid{grid-template-columns:1fr;}}
+.choice-card{
+  border:1px solid var(--border-strong); border-radius:var(--radius-sm); padding:16px 18px;
+  font-size:14.5px; text-align:left; transition:all .15s ease;
+}
+.choice-card:hover{border-color:var(--violet);}
+.choice-card.selected{border-color:var(--violet); background:rgba(245,181,68,0.12); color:var(--text);}
+.onb-nav{display:flex; justify-content:space-between; margin-top:8px;}
+.channel-row{display:flex; align-items:center; justify-content:space-between; padding:14px 0; border-top:1px solid var(--border);}
+.channel-row:first-child{border-top:none;}
+.btn-connected{background:rgba(95,237,186,0.14); color:var(--green); border-color:rgba(95,237,186,0.4);}
+.ch-sub{font-size:12px; color:var(--text-faint); margin-top:2px;}
+.channel-name{display:flex; align-items:center; gap:12px; font-size:14.5px;}
+.ch-icon{width:32px;height:32px;border-radius:9px; background:var(--surface-2); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; font-family:var(--font-display); color:var(--text-dim); letter-spacing:0.02em;}
+.onb-ready{text-align:center; padding:40px 0;}
+.mini-core{
+  width:84px; height:84px; border-radius:50%; margin:0 auto 28px;
+  background:radial-gradient(circle at 35% 30%, #C9B8FF, #9C7BFF 55%, #C77BFF 100%);
+  box-shadow:0 0 60px rgba(245,181,68,0.5), 0 0 100px rgba(93,240,216,0.15);
+  animation:corepulse 3.4s ease-in-out infinite;
+}
+
+/* ============ APP / DASHBOARD ============ */
+.app-shell{display:flex; min-height:100%;}
+.app-sidebar{
+  width:232px; flex-shrink:0; border-right:1px solid var(--border); padding:24px 16px;
+  display:flex; flex-direction:column; position:sticky; top:0; height:100vh;
+}
+.app-sidebar .nav-logo{padding:0 10px 24px; border-bottom:1px solid var(--border); margin-bottom:16px;}
+.side-link{
+  display:flex; align-items:center; gap:11px; padding:10px 12px; border-radius:var(--radius-sm);
+  font-size:14px; color:var(--text-dim); margin-bottom:2px;
+}
+.side-link .ico{width:18px; text-align:center; font-size:14.5px;}
+.side-link:hover{background:var(--hover-tint); color:var(--text);}
+.side-link.active{background:var(--surface-2); color:var(--text); font-weight:600;}
+.side-bottom{margin-top:auto; padding-top:16px; border-top:1px solid var(--border);}
+.side-user{display:flex; align-items:center; gap:10px; padding:8px 10px; font-size:13.5px;}
+.side-avatar{width:30px;height:30px;border-radius:50%; background:var(--grad); flex-shrink:0;}
+.app-main{flex-grow:1; min-width:0; padding:44px 56px 96px;}
+@media (max-width:900px){.app-sidebar{display:none;} .app-main{padding:24px 20px 60px;}}
+
+.app-page{display:none;}
+.app-page.active{display:block; animation:fadein .25s ease;}
+.page-head{display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:28px; flex-wrap:wrap; gap:14px;}
+.page-head h1{font-size:26px; margin-bottom:4px;}
+.page-head p{color:var(--text-dim); font-size:14.5px;}
+
+.metric-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:18px; margin-bottom:36px;}
+@media (max-width:900px){.metric-grid{grid-template-columns:1fr 1fr;}}
+.metric-card{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-md); padding:26px; transition:border-color .2s ease;}
+.metric-card:hover{border-color:var(--border-strong); box-shadow:0 10px 30px rgba(90,60,180,0.08);}
+.metric-card .label{font-size:13px; color:var(--text-dim); margin-bottom:14px;}
+.metric-card .value{font-family:var(--font-display); font-size:27px; font-weight:700; margin-bottom:8px;}
+.metric-card .delta{font-size:12.5px;}
+.delta.up{color:var(--green);}
+.delta.down{color:var(--red);}
+
+.panel{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-md); padding:30px; margin-bottom:24px;}
+.panel h3{font-size:17px; margin-bottom:20px;}
+.did-today li{list-style:none; display:flex; gap:11px; padding:10px 0; border-top:1px solid var(--border); font-size:14px; color:var(--text-dim); align-items:flex-start;}
+.did-today li:first-child{border-top:none;}
+.did-today .ck{color:var(--green); flex-shrink:0; margin-top:1px;}
+
+.dash-grid{display:grid; grid-template-columns:1.4fr 1fr; gap:24px;}
+@media (max-width:1000px){.dash-grid{grid-template-columns:1fr;}}
+
+.agent-pill{display:flex; align-items:center; gap:10px; padding:10px 0; border-top:1px solid var(--border); font-size:13.5px;}
+.agent-pill:first-child{border-top:none;}
+.agent-pill .dot{width:7px;height:7px;border-radius:50%;background:var(--green); flex-shrink:0;}
+.agent-pill .name{flex-grow:1;}
+.agent-pill .status{color:var(--text-faint); font-size:12.5px;}
+
+/* AI Assistant chat */
+.chat-shell{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-md); display:flex; flex-direction:column; height:560px;}
+.chat-log{flex-grow:1; overflow-y:auto; padding:24px; display:flex; flex-direction:column; gap:16px;}
+.msg{max-width:78%; padding:12px 16px; border-radius:14px; font-size:14.5px; line-height:1.5;}
+.msg.user{align-self:flex-end; background:var(--grad); color:#1F1608; border-radius:14px 14px 4px 14px;}
+.msg.ai{align-self:flex-start; background:var(--surface-2); border-radius:14px 14px 14px 4px;}
+.msg.ai .who{font-size:12px; color:var(--text-faint); margin-bottom:5px; font-weight:600;}
+.chat-suggest{display:flex; gap:8px; padding:0 24px 16px; flex-wrap:wrap;}
+.suggest-chip{font-size:12.5px; padding:7px 13px; border:1px solid var(--border-strong); border-radius:100px; color:var(--text-dim);}
+.suggest-chip:hover{border-color:var(--violet); color:var(--text);}
+.chat-input-row{display:flex; gap:10px; padding:16px; border-top:1px solid var(--border);}
+.chat-input-row input{flex-grow:1;}
+
+/* Campaign approval card */
+.campaign-card{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-md); padding:24px; margin-bottom:16px;}
+.campaign-top{display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px;}
+.campaign-top h4{font-size:16px; margin-bottom:4px;}
+.status-chip{font-size:11.5px; padding:4px 10px; border-radius:100px; font-weight:600;}
+.status-chip.pending{background:rgba(255,184,76,0.14); color:var(--amber);}
+.status-chip.live{background:rgba(62,217,160,0.14); color:var(--green);}
+.status-chip.draft{background:var(--surface-2); color:var(--text-dim);}
+.campaign-meta{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin:16px 0; padding:16px 0; border-top:1px solid var(--border); border-bottom:1px solid var(--border);}
+@media (max-width:700px){.campaign-meta{grid-template-columns:1fr 1fr;}}
+.campaign-meta .k{font-size:12px; color:var(--text-faint); margin-bottom:4px;}
+.campaign-meta .v{font-size:14.5px; font-weight:600;}
+.campaign-actions{display:flex; gap:10px; margin-top:16px; flex-wrap:wrap;}
+
+/* Table-ish rows for content/ads */
+.row-list .rl-item{display:flex; align-items:center; justify-content:space-between; padding:14px 0; border-top:1px solid var(--border); font-size:14px;}
+.row-list .rl-item:first-child{border-top:none;}
+.rl-left{display:flex; align-items:center; gap:12px;}
+.rl-thumb{width:38px;height:38px;border-radius:9px; background:var(--surface-2); display:flex;align-items:center;justify-content:center; font-size:15px;}
+
+.tabs{display:flex; gap:6px; margin-bottom:20px; border-bottom:1px solid var(--border);}
+.tab-btn{padding:10px 4px; margin-right:22px; font-size:14px; color:var(--text-dim); border-bottom:2px solid transparent;}
+.tab-btn.active{color:var(--text); border-color:var(--violet); font-weight:600;}
+
+.toast{
+  position:fixed; bottom:28px; right:28px; background:var(--surface-2); border:1px solid var(--border-strong);
+  padding:14px 20px; border-radius:var(--radius-sm); font-size:14px; display:flex; align-items:center; gap:10px;
+  z-index:500; box-shadow:0 10px 40px rgba(0,0,0,0.4); transition:transform .3s ease, opacity .3s ease; transform:translateY(20px); opacity:0; pointer-events:none;
+}
+.toast.show{transform:translateY(0); opacity:1;}
+
+.coming-soon-badge{font-size:11px; padding:3px 8px; border-radius:100px; background:var(--surface-2); color:var(--text-faint);}
+
+.platform-picker{position:relative; display:inline-block;}
+.platform-menu{
+  position:absolute; top:calc(100% + 8px); right:0; z-index:30;
+  background:var(--surface-solid); border:1px solid var(--border-strong); border-radius:var(--radius-sm);
+  padding:8px; min-width:220px; box-shadow:0 20px 50px rgba(0,0,0,0.4);
+  display:none;
+}
+.platform-menu.open{display:block;}
+.platform-menu .pm-label{font-size:12px; color:var(--text-faint); padding:6px 10px 8px;}
+.platform-option{
+  display:flex; align-items:center; gap:10px; padding:9px 10px; border-radius:8px; font-size:14px; width:100%; text-align:left;
+}
+.platform-option:hover{background:var(--hover-tint);}
+.platform-option .po-icon{width:26px; height:26px; border-radius:7px; background:var(--surface-2); display:flex; align-items:center; justify-content:center; font-size:10.5px; font-weight:700; font-family:var(--font-display); flex-shrink:0;}
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+<defs>
+<symbol id="i-home" viewBox="0 0 18 18"><rect x="2" y="2" width="6" height="6" rx="1"/><rect x="10" y="2" width="6" height="6" rx="1"/><rect x="2" y="10" width="6" height="6" rx="1"/><rect x="10" y="10" width="6" height="6" rx="1"/></symbol>
+<symbol id="i-chat" viewBox="0 0 18 18"><path d="M2 4h14v8H7l-3 3v-3H2z"/><circle cx="6" cy="8" r="0.6" fill="currentColor" stroke="none"/><circle cx="9" cy="8" r="0.6" fill="currentColor" stroke="none"/><circle cx="12" cy="8" r="0.6" fill="currentColor" stroke="none"/></symbol>
+<symbol id="i-team" viewBox="0 0 18 18"><circle cx="9" cy="9" r="1.8"/><circle cx="3" cy="3" r="1.3"/><circle cx="15" cy="3" r="1.3"/><circle cx="3" cy="15" r="1.3"/><circle cx="15" cy="15" r="1.3"/><line x1="9" y1="9" x2="3.6" y2="3.6"/><line x1="9" y1="9" x2="14.4" y2="3.6"/><line x1="9" y1="9" x2="3.6" y2="14.4"/><line x1="9" y1="9" x2="14.4" y2="14.4"/></symbol>
+<symbol id="i-target" viewBox="0 0 18 18"><circle cx="9" cy="9" r="6.6"/><circle cx="9" cy="9" r="3.4"/><circle cx="9" cy="9" r="0.7" fill="currentColor" stroke="none"/></symbol>
+<symbol id="i-layers" viewBox="0 0 18 18"><path d="M9 2 2 6l7 4 7-4-7-4z"/><path d="M2 10l7 4 7-4"/></symbol>
+<symbol id="i-broadcast" viewBox="0 0 18 18"><circle cx="9" cy="9" r="1.5"/><path d="M5.6 5.6a4.7 4.7 0 000 6.8"/><path d="M12.4 5.6a4.7 4.7 0 010 6.8"/><path d="M3.2 3.2a8.6 8.6 0 000 11.6"/><path d="M14.8 3.2a8.6 8.6 0 010 11.6"/></symbol>
+<symbol id="i-radar" viewBox="0 0 18 18"><circle cx="9" cy="9" r="6.6"/><circle cx="9" cy="9" r="3.8"/><circle cx="9" cy="9" r="0.9" fill="currentColor" stroke="none"/><line x1="9" y1="9" x2="13.5" y2="4.5"/></symbol>
+<symbol id="i-orbit" viewBox="0 0 18 18"><circle cx="9" cy="9" r="1.4" fill="currentColor" stroke="none"/><ellipse cx="9" cy="9" rx="7.6" ry="3"/><ellipse cx="9" cy="9" rx="3" ry="7.6" transform="rotate(45 9 9)"/></symbol>
+<symbol id="i-bars" viewBox="0 0 18 18"><line x1="3" y1="15" x2="3" y2="9"/><line x1="9" y1="15" x2="9" y2="4"/><line x1="15" y1="15" x2="15" y2="11"/></symbol>
+<symbol id="i-card" viewBox="0 0 18 18"><rect x="2" y="4" width="14" height="10" rx="1.4"/><line x1="2" y1="7.5" x2="16" y2="7.5"/></symbol>
+<symbol id="i-gear" viewBox="0 0 18 18"><circle cx="9" cy="9" r="2.3"/><path d="M9 2.2v2.3M9 13.5v2.3M2.2 9h2.3M13.5 9h2.3M4.3 4.3l1.6 1.6M12.1 12.1l1.6 1.6M13.7 4.3l-1.6 1.6M5.9 12.1l-1.6 1.6"/></symbol>
+<symbol id="i-logout" viewBox="0 0 18 18"><path d="M7 2H3v14h4"/><path d="M11 5l4 4-4 4"/><line x1="15" y1="9" x2="6" y2="9"/></symbol>
+<symbol id="i-compass" viewBox="0 0 18 18"><circle cx="9" cy="9" r="6.6"/><path d="M11.6 6.4L9.8 9.8 6.4 11.6 8.2 8.2z"/></symbol>
+<symbol id="i-spark" viewBox="0 0 18 18"><path d="M9 2v3.4M9 12.6V16M2 9h3.4M12.6 9H16M4.5 4.5l2.4 2.4M11.1 11.1l2.4 2.4M13.5 4.5l-2.4 2.4M6.9 11.1l-2.4 2.4"/></symbol>
+<symbol id="i-pen" viewBox="0 0 18 18"><path d="M3 15l0.8-3.6L11.4 3.8l2.8 2.8-7.6 7.6z"/><path d="M9.8 5.4l2.8 2.8"/></symbol>
+<symbol id="i-trend" viewBox="0 0 18 18"><path d="M2 13l4.4-4.4 2.6 2.6L14.6 5.6"/><path d="M11 5.2h3.6v3.6"/></symbol>
+<symbol id="i-image" viewBox="0 0 18 18"><rect x="2" y="3" width="14" height="12" rx="1.4"/><circle cx="6.2" cy="7" r="1.2"/><path d="M3 13.5l3.6-3.6 2.6 2.6 2.8-3.4 3 3.4"/></symbol>
+<symbol id="i-video" viewBox="0 0 18 18"><rect x="2" y="4" width="10" height="10" rx="1.2"/><path d="M12 7.3l4-2.4v8.2l-4-2.4"/></symbol>
+<symbol id="i-doc" viewBox="0 0 18 18"><path d="M4 2h7l3 3v11H4z"/><path d="M11 2v3h3"/><line x1="6.5" y1="9.2" x2="11.5" y2="9.2"/><line x1="6.5" y1="12" x2="11.5" y2="12"/></symbol>
+<symbol id="i-rocket" viewBox="0 0 24 24"><path d="M12 2.2c2.6 2.1 4.1 5.6 4.1 9.1 0 2-.5 3.9-1.1 5.4l-3 2-3-2c-.6-1.5-1.1-3.4-1.1-5.4 0-3.5 1.5-7 4.1-9.1z"/><circle cx="12" cy="9.3" r="1.5"/><path d="M8.9 14.8l-2.4 1.5v-3.4"/><path d="M15.1 14.8l2.4 1.5v-3.4"/><path d="M10.2 17.8l1.8 2.4 1.8-2.4"/></symbol>
+<symbol id="i-sun" viewBox="0 0 18 18"><circle cx="9" cy="9" r="3.6"/><path d="M9 1.6v2M9 14.4v2M1.6 9h2M14.4 9h2M3.6 3.6l1.4 1.4M13 13l1.4 1.4M14.4 3.6L13 5M5 13l-1.4 1.4"/></symbol>
+<symbol id="i-moon" viewBox="0 0 18 18"><path d="M15.5 10.3A6.8 6.8 0 117.7 2.5a5.4 5.4 0 007.8 7.8z"/></symbol>
+</defs>
+</svg>
+
+<canvas id="starfield"></canvas>
+<div class="bg-field"></div>
+
+<!-- ======================= MARKETING SITE ======================= -->
+<div id="site">
+  <nav class="nav">
+    <div class="nav-logo"><span class="dot"></span><span class="shine-text">postly.media</span></div>
+    <div class="nav-links">
+      <a onclick="document.getElementById('ai-team').scrollIntoView()">Product</a>
+      <a onclick="document.getElementById('how').scrollIntoView()">How it works</a>
+      <a onclick="document.getElementById('competitors').scrollIntoView()">Competitors</a>
+      <a onclick="document.getElementById('pricing').scrollIntoView()">Pricing</a>
+    </div>
+    <div class="nav-actions nav-mobile-hide">
+      <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">
+        <svg class="i theme-icon-light"><use href="#i-moon"/></svg>
+        <svg class="i theme-icon-dark"><use href="#i-sun"/></svg>
+      </button>
+      <button class="btn btn-text" onclick="openScreen('login')">Log in</button>
+      <button class="btn btn-primary" onclick="openScreen('register')">Launch Free</button>
+    </div>
+  </nav>
+
+  <header class="hero wrap">
+    <div class="space-scene">
+      <div class="scene-panel">
+        <svg viewBox="0 0 480 560">
+          <defs>
+            <radialGradient id="planetGrad" cx="32%" cy="28%" r="70%">
+              <stop offset="0%" stop-color="#F5B544"/>
+              <stop offset="42%" stop-color="#8A4A32"/>
+              <stop offset="100%" stop-color="#1A1016"/>
+            </radialGradient>
+            <radialGradient id="moonGradS" cx="35%" cy="30%" r="70%">
+              <stop offset="0%" stop-color="#E7E4F7"/>
+              <stop offset="100%" stop-color="#69648F"/>
+            </radialGradient>
+            <linearGradient id="rocketGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#F3F1FF"/>
+              <stop offset="55%" stop-color="#FFD9B0"/>
+              <stop offset="100%" stop-color="#C07A3E"/>
+            </linearGradient>
+            <linearGradient id="flameGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#FFE6B8"/>
+              <stop offset="60%" stop-color="#F5B544"/>
+              <stop offset="100%" stop-color="rgba(245,181,68,0)"/>
+            </linearGradient>
+            <radialGradient id="helmetGrad" cx="35%" cy="30%" r="75%">
+              <stop offset="0%" stop-color="#4A3348"/>
+              <stop offset="100%" stop-color="#140E16"/>
+            </radialGradient>
+            <linearGradient id="suitGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#EDEBFA"/>
+              <stop offset="100%" stop-color="#8A85B8"/>
+            </linearGradient>
+          </defs>
+
+          <!-- distant moon -->
+          <circle cx="66" cy="76" r="19" fill="url(#moonGradS)"/>
+
+          <!-- sparkle stars -->
+          <path class="scene-sparkle" d="M332,84 L334,92 L342,94 L334,96 L332,104 L330,96 L322,94 L330,92 Z"/>
+          <path class="scene-sparkle" d="M118,340 L119.5,345 L124.5,346.5 L119.5,348 L118,353 L116.5,348 L111.5,346.5 L116.5,345 Z"/>
+          <path class="scene-sparkle" d="M414,240 L415.5,245 L420.5,246.5 L415.5,248 L414,253 L412.5,248 L407.5,246.5 L412.5,245 Z"/>
+          <circle class="scene-sparkle" cx="150" cy="120" r="1.6"/>
+          <circle class="scene-sparkle" cx="60" cy="230" r="1.3"/>
+          <circle class="scene-sparkle" cx="440" cy="150" r="1.4"/>
+          <circle class="scene-sparkle" cx="380" cy="60" r="1.2"/>
+
+          <!-- orbit rings -->
+          <ellipse class="scene-orbit" cx="250" cy="290" rx="200" ry="172"/>
+          <ellipse class="scene-orbit" cx="250" cy="290" rx="150" ry="128"/>
+
+          <!-- planet + ring, lower right -->
+          <ellipse class="scene-ring" cx="392" cy="466" rx="205" ry="40" transform="rotate(-16 392 466)"/>
+          <circle cx="392" cy="466" r="148" fill="url(#planetGrad)"/>
+          <ellipse class="scene-ring" cx="392" cy="466" rx="205" ry="40" transform="rotate(-16 392 466)" style="stroke:rgba(255,138,107,0.32)" />
+
+          <!-- trajectory trail -->
+          <path class="scene-trail" d="M210,400 Q150,466 90,524"/>
+
+          <!-- rocket -->
+          <g transform="translate(210,362)">
+            <g class="scene-rocket">
+              <g class="scene-flame">
+                <path d="M-9,38 C-5,58 5,58 9,38 C5,72 -5,72 -9,38Z" fill="url(#flameGrad)"/>
+              </g>
+              <path d="M0,-68 C21,-39 21,9 13,38 L-13,38 C-21,9 -21,-39 0,-68Z" fill="url(#rocketGrad)"/>
+              <path d="M-13,18 L-32,40 L-13,37Z" fill="url(#rocketGrad)"/>
+              <path d="M13,18 L32,40 L13,37Z" fill="url(#rocketGrad)"/>
+              <circle cx="0" cy="-14" r="8.5" fill="#1A1220" stroke="rgba(255,255,255,0.55)" stroke-width="1.4"/>
+            </g>
+          </g>
+
+          <!-- astronaut -->
+          <g transform="translate(82,108)">
+            <g class="scene-astronaut">
+              <path d="M-18,24 C-24,46 -16,72 -5,80 L5,80 C16,72 24,46 18,24 C9,31 -9,31 -18,24Z" fill="url(#suitGrad)"/>
+              <path d="M-18,36 C-30,42 -35,54 -32,60" stroke="rgba(255,215,180,0.45)" fill="none" stroke-width="1.8"/>
+              <ellipse cx="0" cy="0" rx="24" ry="26" fill="url(#helmetGrad)" stroke="rgba(255,255,255,0.22)" stroke-width="1"/>
+              <ellipse cx="-4" cy="-3" rx="9" ry="12.5" fill="rgba(255,255,255,0.14)"/>
+            </g>
+          </g>
+        </svg>
+        <div class="scene-caption">Mission status: <b>ready for launch</b></div>
+      </div>
+    </div>
+    <div class="hero-inner">
+      <div class="eyebrow"><span class="pulse"></span> Marketing is evolving.</div>
+      <h1>Your AI Marketing<br>Department.</h1>
+      <p class="sub">Tell us your goal. We'll launch the marketing. Postly's AI crew builds the strategy, creates the work, and runs it — you approve what matters.</p>
+      <div class="hero-cta">
+        <button class="btn btn-primary" onclick="openScreen('register')">Launch Free</button>
+        <button class="btn btn-ghost" onclick="document.getElementById('how').scrollIntoView()">See how it works</button>
+      </div>
+      <p style="font-size:13px; color:var(--text-faint); margin-bottom:14px;">What do you want to achieve?</p>
+      <div class="goal-picker" id="goalPicker">
+        <div class="goal-chip active">Get more customers</div>
+        <div class="goal-chip">Increase sales</div>
+        <div class="goal-chip">Generate leads</div>
+        <div class="goal-chip">Grow on social</div>
+        <div class="goal-chip">Get discovered in AI Search</div>
+      </div>
+    </div>
+  </header>
+
+  <section class="wrap" style="padding:20px 0 120px;">
+    <p style="max-width:760px; margin:0 auto; text-align:center; font-size:clamp(21px,3vw,29px); font-family:var(--font-display); font-weight:600; line-height:1.45; color:var(--text-faint);">
+      Marketing used to mean hiring an agency, learning the platforms yourself, or guessing.
+      <span style="color:var(--text);">Postly is the next stage</span> — an intelligent system that plans, creates, and runs your marketing on its own.
+    </p>
+  </section>
+
+  <section class="section wrap" id="ai-team">
+    <div class="section-head">
+      <span class="tag">The product</span>
+      <h2>Your AI Marketing Department</h2>
+      <p>Six specialists, working from one shared goal — the strategy, the creative, the media buying, and the reporting, without hiring six people.</p>
+    </div>
+    <div class="team-grid">
+      <div class="team-card"><div class="icon"><svg class="i"><use href="#i-compass"/></svg></div><h4>Strategy Agent</h4><p>Turns your goal into a marketing plan — channels, budget split, and timeline.</p></div>
+      <div class="team-card"><div class="icon"><svg class="i"><use href="#i-spark"/></svg></div><h4>Creative Agent</h4><p>Designs the visuals, ad creatives, and concepts your brand needs.</p></div>
+      <div class="team-card"><div class="icon"><svg class="i"><use href="#i-pen"/></svg></div><h4>Content Agent</h4><p>Writes captions, ad copy, hooks, and scripts in your brand's voice.</p></div>
+      <div class="team-card"><div class="icon"><svg class="i"><use href="#i-target"/></svg></div><h4>Ads Agent</h4><p>Builds and launches campaigns across the platforms your customers use.</p></div>
+      <div class="team-card"><div class="icon"><svg class="i"><use href="#i-trend"/></svg></div><h4>Growth Agent</h4><p>Watches performance daily and reallocates budget toward what's working.</p></div>
+      <div class="team-card"><div class="icon"><svg class="i"><use href="#i-orbit"/></svg></div><h4>AI Search Agent</h4><p>Makes sure AI assistants and search engines recommend your business.</p></div>
+    </div>
+  </section>
+
+  <div class="wrap"><div class="divider"></div></div>
+
+  <section class="section wrap" id="how">
+    <div class="section-head">
+      <span class="tag">Mission control</span>
+      <h2>From goal to growth.</h2>
+    </div>
+    <div class="steps">
+      <div class="step-row"><div class="step-num">01</div><div class="step-body"><h4>Tell us your goal</h4><p>In plain language — "I want more customers" is enough to start.</p></div></div>
+      <div class="step-row"><div class="step-num">02</div><div class="step-body"><h4>Postly builds your strategy</h4><p>The Strategy Agent turns your goal into a concrete marketing plan.</p></div></div>
+      <div class="step-row"><div class="step-num">03</div><div class="step-body"><h4>AI creates the work</h4><p>Content, creatives, and campaigns get built automatically.</p></div></div>
+      <div class="step-row"><div class="step-num">04</div><div class="step-body"><h4>You approve what matters</h4><p>Budget and launches wait for your sign-off — nothing spends without you.</p></div></div>
+      <div class="step-row"><div class="step-num">05</div><div class="step-body"><h4>Postly launches and optimizes</h4><p>The Growth Agent keeps tuning performance every day, automatically.</p></div></div>
+    </div>
+  </section>
+
+  <div class="wrap"><div class="divider"></div></div>
+
+  <section class="section wrap">
+    <div class="section-head">
+      <span class="tag">Execution, not advice</span>
+      <h2>We don't just recommend. We execute.</h2>
+    </div>
+    <div class="exec-grid">
+      <div class="exec-compare">
+        <div class="exec-line no"><span class="mark">✕</span> "Here's what you should do."</div>
+        <div class="exec-line yes"><span class="mark">✓</span> "We've analyzed your business and built the campaign — review and launch."</div>
+      </div>
+      <div class="panel" style="margin:0;">
+        <p style="font-size:13px; color:var(--text-faint); margin-bottom:10px;">Example</p>
+        <p style="font-size:15px; margin-bottom:16px;">"I need more customers this month."</p>
+        <div style="background:var(--bg); border:1px solid var(--border); border-radius:12px; padding:16px;">
+          <p style="font-size:13.5px; color:var(--text-dim); margin-bottom:10px;">Postly has prepared a campaign for you.</p>
+          <div style="display:flex; gap:10px;">
+            <button class="btn btn-primary btn-sm" onclick="openScreen('register')">Review Campaign</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="wrap"><div class="divider"></div></div>
+
+  <section class="section wrap">
+    <div class="autopilot-card">
+      <div>
+        <span class="tag" style="color:var(--violet); font-size:13.5px; font-weight:600;">Autopilot</span>
+        <h2 style="margin:14px 0 14px;">Put your marketing on autopilot.</h2>
+        <p style="color:var(--text-dim); margin-bottom:24px; font-size:15px;">Let Postly continuously manage your marketing based on your goals and approved budget.</p>
+        <div class="toggle-row"><div class="toggle"></div><span style="font-size:14.5px; color:var(--green); font-weight:600;">Autopilot is ON</span></div>
+        <div class="autopilot-list">
+          <div>✓ Content creation</div>
+          <div>✓ Campaign optimization</div>
+          <div>✓ Competitor monitoring</div>
+          <div>✓ Performance analysis</div>
+          <div>✓ New campaign opportunities</div>
+          <div>✓ AI Search opportunities</div>
+        </div>
+      </div>
+      <div class="autopilot-visual">
+        <p style="font-size:13px; color:var(--text-faint); margin-bottom:14px;">Approval controls</p>
+        <div class="agent-pill"><span class="dot"></span><span class="name">Spend under $50/day</span><span class="status">Automatic</span></div>
+        <div class="agent-pill"><span class="dot" style="background:var(--amber);"></span><span class="name">New campaign launch</span><span class="status">Needs approval</span></div>
+        <div class="agent-pill"><span class="dot" style="background:var(--blue);"></span><span class="name">Strategy changes</span><span class="status">Human review</span></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="wrap"><div class="divider"></div></div>
+
+  <section class="section wrap" id="competitors">
+    <div class="section-head">
+      <span class="tag">Radar &amp; discovery</span>
+      <h2>Know what your competitors are doing. Get discovered by AI.</h2>
+    </div>
+    <div class="split-preview">
+      <div class="preview-card">
+        <h4>Competitor Intelligence</h4>
+        <p>Postly tracks competitor campaigns, offers, and content — and flags the openings.</p>
+        <div class="comp-row"><span>Riverstone Cafe</span><span class="comp-tag">New offer detected</span></div>
+        <div class="comp-row"><span>Urban Fit Studio</span><span class="comp-tag">3 new ads</span></div>
+        <div class="comp-row"><span>Nova Skincare</span><span class="comp-tag">Price drop</span></div>
+        <button class="btn btn-ghost btn-sm" style="margin-top:16px;" onclick="openScreen('register')">Create Counter Campaign</button>
+      </div>
+      <div class="preview-card" id="ai-search">
+        <h4>AI Search Visibility</h4>
+        <p>How AI assistants describe and recommend your business.</p>
+        <div class="score-ring-mini"><div class="score-num">72<span style="font-size:15px; color:var(--text-dim);">/100</span></div><span style="font-size:13.5px; color:var(--text-dim);">AI Visibility Score</span></div>
+        <div class="mini-bar-row"><span>Brand Presence</span><span>81%</span></div>
+        <div class="mini-bar"><div style="width:81%;"></div></div>
+        <div class="mini-bar-row"><span>Local SEO</span><span>64%</span></div>
+        <div class="mini-bar"><div style="width:64%;"></div></div>
+        <button class="btn btn-ghost btn-sm" onclick="openScreen('register')">Improve My AI Visibility</button>
+      </div>
+    </div>
+  </section>
+
+  <div class="wrap"><div class="divider"></div></div>
+
+  <section class="section wrap" id="pricing">
+    <div class="section-head" style="max-width:640px;">
+      <span class="tag">Pricing</span>
+      <h2>Simple, transparent pricing.</h2>
+      <p>No complicated contracts. No hidden fees. Choose the plan that fits your business.</p>
+    </div>
+    <div class="pricing-grid">
+      <div class="price-card">
+        <div class="plan-name">STARTER</div>
+        <div class="price-old">$150</div>
+        <div class="price-now">$85<span>/month</span></div>
+        <ul class="price-feats">
+          <li><span class="ck">✓</span>Social media management</li>
+          <li><span class="ck">✓</span>Content creation</li>
+          <li><span class="ck">✓</span>Basic AI marketing assistant</li>
+          <li><span class="ck">✓</span>Monthly content plan</li>
+          <li><span class="ck">✓</span>Basic analytics</li>
+          <li><span class="ck">✓</span>Basic competitor insights</li>
+          <li><span class="ck">✓</span>Email support</li>
+        </ul>
+        <button class="btn btn-ghost btn-block" onclick="openScreen('register')">Launch Starter</button>
+      </div>
+      <div class="price-card popular">
+        <div class="price-badge">MOST POPULAR</div>
+        <div class="plan-name">GROWTH</div>
+        <div class="price-now" style="margin-top:26px;">$249<span>/month</span></div>
+        <ul class="price-feats">
+          <li><span class="ck">✓</span>Everything in Starter</li>
+          <li><span class="ck">✓</span>Full AI marketing team</li>
+          <li><span class="ck">✓</span>Ad campaign creation</li>
+          <li><span class="ck">✓</span>Competitor intelligence</li>
+          <li><span class="ck">✓</span>Growth Agent optimization</li>
+          <li><span class="ck">✓</span>AI Search visibility</li>
+          <li><span class="ck">✓</span>Full analytics suite</li>
+        </ul>
+        <button class="btn btn-primary btn-block" onclick="openScreen('register')">Launch Growth</button>
+      </div>
+      <div class="price-card">
+        <div class="plan-name">AUTOPILOT</div>
+        <div class="price-now" style="margin-top:26px;">$499<span>/month</span></div>
+        <ul class="price-feats">
+          <li><span class="ck">✓</span>Everything in Growth</li>
+          <li><span class="ck">✓</span>Marketing Autopilot</li>
+          <li><span class="ck">✓</span>Continuous optimization</li>
+          <li><span class="ck">✓</span>Advanced competitor intelligence</li>
+          <li><span class="ck">✓</span>Advanced AI Search</li>
+          <li><span class="ck">✓</span>Automated campaign management</li>
+          <li><span class="ck">✓</span>Priority support</li>
+        </ul>
+        <button class="btn btn-ghost btn-block" onclick="openScreen('register')">Launch Autopilot</button>
+      </div>
+      <div class="price-card">
+        <div class="plan-name">CUSTOM</div>
+        <div class="price-custom">Let's talk</div>
+        <ul class="price-feats">
+          <li><span class="ck">✓</span>Multi-location businesses</li>
+          <li><span class="ck">✓</span>Custom integrations</li>
+          <li><span class="ck">✓</span>Dedicated strategist</li>
+          <li><span class="ck">✓</span>Custom reporting</li>
+          <li><span class="ck">✓</span>SLA & onboarding support</li>
+        </ul>
+        <button class="btn btn-ghost btn-block">Talk to Sales</button>
+      </div>
+    </div>
+    <p class="price-note">All plans include a 14-day free trial. Cancel anytime.</p>
+  </section>
+
+  <footer class="footer wrap">
+    <div class="footer-top">
+      <div>
+        <div class="nav-logo"><span class="dot"></span><span class="shine-text">postly.media</span></div>
+        <p class="footer-tag">Your AI Marketing Department. You set the goal — Postly does the marketing.</p>
+      </div>
+      <div class="footer-cols">
+        <div class="footer-col"><h5>Product</h5><a onclick="document.getElementById('ai-team').scrollIntoView()">AI Team</a><a onclick="document.getElementById('competitors').scrollIntoView()">Competitors</a><a onclick="document.getElementById('ai-search').scrollIntoView()">AI Search</a><a onclick="document.getElementById('pricing').scrollIntoView()">Pricing</a></div>
+        <div class="footer-col"><h5>Company</h5><a onclick="return false">About</a><a onclick="return false">Careers</a><a onclick="return false">Contact</a></div>
+      </div>
+    </div>
+    <div class="footer-bottom"><span>© 2026 Postly, Inc.</span><span>Postly.media</span></div>
+  </footer>
+</div>
+
+<!-- ======================= REGISTER ======================= -->
+<div class="screen" id="screen-register">
+  <div class="auth-shell">
+    <button class="auth-close" onclick="closeScreen()">← Back to Postly</button>
+    <div class="auth-box">
+      <div class="nav-logo"><span class="dot"></span><span class="shine-text">postly.media</span></div>
+      <h2>Create your Postly account</h2>
+      <p class="sub-center">Set up your AI Marketing Department in minutes.</p>
+      <form onsubmit="event.preventDefault();">
+        <div class="field-row2">
+          <div class="field-group"><label>First name</label><input type="text"></div>
+          <div class="field-group"><label>Last name</label><input type="text"></div>
+        </div>
+        <div class="field-group"><label>Business name</label><input type="text" id="regBizName" placeholder="e.g. Riverside Coffee Co."></div>
+        <div class="field-group"><label>Email</label><input type="email"></div>
+        <div class="field-group"><label>Phone number</label><input type="tel"></div>
+        <div class="field-row2">
+          <div class="field-group"><label>Password</label><input type="password"></div>
+          <div class="field-group"><label>Confirm password</label><input type="password"></div>
+        </div>
+        <button class="btn btn-primary btn-block" type="button" onclick="startOnboarding()" style="margin-top:8px; padding:13px;">Create Account</button>
+      </form>
+      <p class="auth-foot">Already have an account? <a onclick="openScreen('login')">Log in</a></p>
+    </div>
+  </div>
+</div>
+
+<!-- ======================= LOGIN ======================= -->
+<div class="screen" id="screen-login">
+  <div class="auth-shell">
+    <button class="auth-close" onclick="closeScreen()">← Back to Postly</button>
+    <div class="auth-box">
+      <div class="nav-logo"><span class="dot"></span><span class="shine-text">postly.media</span></div>
+      <h2>Welcome back.</h2>
+      <p class="sub-center">Log in to your AI Marketing Department.</p>
+      <form onsubmit="event.preventDefault();">
+        <div class="field-group"><label>Email</label><input type="email"></div>
+        <div class="field-group"><label>Password</label><input type="password"></div>
+        <div class="auth-check">
+          <label style="display:flex; align-items:center; gap:8px; margin:0;"><input type="checkbox" style="width:auto;">Remember me</label>
+          <a style="color:var(--violet); font-weight:600;">Forgot password?</a>
+        </div>
+        <button class="btn btn-primary btn-block" type="button" onclick="enterApp(); showToast('Welcome back!');" style="padding:13px;">Log in</button>
+      </form>
+      <p class="auth-foot">New to Postly? <a onclick="openScreen('register')">Create account</a></p>
+    </div>
+  </div>
+</div>
+
+<!-- ======================= ONBOARDING ======================= -->
+<div class="screen" id="screen-onboarding">
+  <div class="onb-shell">
+    <div class="onb-progress" id="onbProgress">
+      <div class="current"><span></span></div><div><span></span></div><div><span></span></div><div><span></span></div><div><span></span></div>
+    </div>
+
+    <div class="onb-step active" data-step="1">
+      <h2>Tell us about your business.</h2>
+      <p class="hint">This helps your AI team understand who you are.</p>
+      <div class="field-group"><label>Business name</label><input type="text" id="onbBizName"></div>
+      <div class="field-row2">
+        <div class="field-group"><label>Business type</label><select><option>Local business</option><option>E-commerce</option><option>Service provider</option><option>Other</option></select></div>
+        <div class="field-group"><label>Industry</label><select><option>Food & beverage</option><option>Retail</option><option>Health & fitness</option><option>Professional services</option><option>Other</option></select></div>
+      </div>
+      <div class="field-row2">
+        <div class="field-group"><label>Website (optional)</label><input type="text" placeholder="yourbusiness.com"></div>
+        <div class="field-group"><label>Location</label><input type="text" placeholder="City, Country"></div>
+      </div>
+      <div class="field-group"><label>Description</label><textarea rows="2" placeholder="What does your business do?"></textarea></div>
+      <div class="onb-nav"><span></span><button class="btn btn-primary" onclick="onbNext(1)">Continue</button></div>
+    </div>
+
+    <div class="onb-step" data-step="2">
+      <h2>What do you want to achieve?</h2>
+      <p class="hint">Pick the goal that matters most right now.</p>
+      <div class="choice-grid" id="goalGrid">
+        <div class="choice-card selected" onclick="selectChoice(this,'goalGrid')">Get more customers</div>
+        <div class="choice-card" onclick="selectChoice(this,'goalGrid')">Increase sales</div>
+        <div class="choice-card" onclick="selectChoice(this,'goalGrid')">Generate leads</div>
+        <div class="choice-card" onclick="selectChoice(this,'goalGrid')">Grow on social media</div>
+        <div class="choice-card" onclick="selectChoice(this,'goalGrid')">Launch a product</div>
+        <div class="choice-card" onclick="selectChoice(this,'goalGrid')">Build my brand</div>
+        <div class="choice-card" onclick="selectChoice(this,'goalGrid')">Get more bookings</div>
+        <div class="choice-card" onclick="selectChoice(this,'goalGrid')">Get discovered in AI Search</div>
+      </div>
+      <div class="onb-nav"><button class="btn btn-ghost" onclick="onbBack(2)">Back</button><button class="btn btn-primary" onclick="onbNext(2)">Continue</button></div>
+    </div>
+
+    <div class="onb-step" data-step="3">
+      <h2>Who are your customers?</h2>
+      <p class="hint">A rough picture is enough — your AI team will refine it.</p>
+      <div class="field-row2">
+        <div class="field-group"><label>Age range</label><select><option>18–24</option><option selected>25–34</option><option>35–44</option><option>45–54</option><option>55+</option></select></div>
+        <div class="field-group"><label>Customer type</label><select><option>Individuals</option><option>Businesses</option><option>Both</option></select></div>
+      </div>
+      <div class="field-group"><label>Location</label><input type="text" placeholder="Where are your customers based?"></div>
+      <div class="field-group"><label>Interests</label><input type="text" placeholder="e.g. coffee, wellness, sustainability"></div>
+      <div class="onb-nav"><button class="btn btn-ghost" onclick="onbBack(3)">Back</button><button class="btn btn-primary" onclick="onbNext(3)">Continue</button></div>
+    </div>
+
+    <div class="onb-step" data-step="4">
+      <h2>What's your monthly marketing budget?</h2>
+      <p class="hint">Postly will build a plan that fits — you can change this anytime.</p>
+      <div class="choice-grid" id="budgetGrid" style="grid-template-columns:1fr;">
+        <div class="choice-card" onclick="selectChoice(this,'budgetGrid')">Under $100</div>
+        <div class="choice-card selected" onclick="selectChoice(this,'budgetGrid')">$100 – $300</div>
+        <div class="choice-card" onclick="selectChoice(this,'budgetGrid')">$300 – $500</div>
+        <div class="choice-card" onclick="selectChoice(this,'budgetGrid')">$500 – $1,000</div>
+        <div class="choice-card" onclick="selectChoice(this,'budgetGrid')">$1,000+</div>
+      </div>
+      <div class="onb-nav"><button class="btn btn-ghost" onclick="onbBack(4)">Back</button><button class="btn btn-primary" onclick="onbNext(4)">Continue</button></div>
+    </div>
+
+    <div class="onb-step" data-step="5">
+      <h2>Connect your marketing channels.</h2>
+      <p class="hint">Skip any of these for now — you can connect them later.</p>
+      <div class="panel" style="margin-bottom:24px;">
+        <div class="channel-row"><div class="channel-name"><span class="ch-icon">IG</span><div>Instagram<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" onclick="connectChannel(this,'Instagram','@riverside.coffee')">Connect</button></div>
+        <div class="channel-row"><div class="channel-name"><span class="ch-icon">FB</span><div>Facebook<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" onclick="connectChannel(this,'Facebook','Riverside Coffee Co.')">Connect</button></div>
+        <div class="channel-row"><div class="channel-name"><span class="ch-icon"><svg class="i" style="width:15px;height:15px;"><use href="#i-target"/></svg></span><div>Meta Ads<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" onclick="connectChannel(this,'Meta Ads','Ad account 4471')">Connect</button></div>
+        <div class="channel-row"><div class="channel-name"><span class="ch-icon">TT</span><div>TikTok<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" onclick="connectChannel(this,'TikTok','@riverside.coffee')">Connect</button></div>
+        <div class="channel-row"><div class="channel-name"><span class="ch-icon"><svg class="i" style="width:15px;height:15px;"><use href="#i-orbit"/></svg></span><div>Google Business Profile<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" onclick="connectChannel(this,'Google Business Profile','Riverside Coffee Co.')">Connect</button></div>
+        <div class="channel-row"><div class="channel-name"><span class="ch-icon" style="font-size:9px;">GPT</span><div>ChatGPT Ads<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" onclick="connectChannel(this,'ChatGPT Ads','Advertiser account 8821')">Connect</button></div>
+      </div>
+      <div class="onb-nav"><button class="btn btn-ghost" onclick="onbBack(5)">Back</button><button class="btn btn-primary" onclick="onbFinish()">Build My Marketing Plan</button></div>
+    </div>
+
+    <div class="onb-step" data-step="6">
+      <div class="onb-ready">
+        <div class="mini-core"></div>
+        <h2>Your AI Marketing Department is ready.</h2>
+        <p class="hint" style="max-width:420px; margin:0 auto 32px;">Your team has reviewed your goal and started building your first marketing plan.</p>
+        <button class="btn btn-primary" onclick="enterApp()" style="padding:14px 30px;">Enter My Dashboard</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======================= APP (DASHBOARD) ======================= -->
+<div class="screen" id="screen-app">
+  <div class="app-shell">
+    <aside class="app-sidebar">
+      <div class="nav-logo"><span class="dot"></span><span class="shine-text">postly.media</span></div>
+      <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme" style="margin:2px 0 16px; width:36px; height:36px;">
+        <svg class="i theme-icon-light"><use href="#i-moon"/></svg>
+        <svg class="i theme-icon-dark"><use href="#i-sun"/></svg>
+      </button>
+      <a class="side-link active" data-page="dashboard" onclick="showPage('dashboard')"><span class="ico"><svg class="i"><use href="#i-home"/></svg></span>Dashboard</a>
+      <a class="side-link" data-page="assistant" onclick="showPage('assistant')"><span class="ico"><svg class="i"><use href="#i-chat"/></svg></span>AI Assistant</a>
+      <a class="side-link" data-page="team" onclick="showPage('team')"><span class="ico"><svg class="i"><use href="#i-team"/></svg></span>AI Team</a>
+      <a class="side-link" data-page="campaigns" onclick="showPage('campaigns')"><span class="ico"><svg class="i"><use href="#i-target"/></svg></span>Campaigns</a>
+      <a class="side-link" data-page="content" onclick="showPage('content')"><span class="ico"><svg class="i"><use href="#i-layers"/></svg></span>Content</a>
+      <a class="side-link" data-page="ads" onclick="showPage('ads')"><span class="ico"><svg class="i"><use href="#i-broadcast"/></svg></span>Ads</a>
+      <a class="side-link" data-page="competitors" onclick="showPage('competitors')"><span class="ico"><svg class="i"><use href="#i-radar"/></svg></span>Competitors</a>
+      <a class="side-link" data-page="aisearch" onclick="showPage('aisearch')"><span class="ico"><svg class="i"><use href="#i-orbit"/></svg></span>AI Search</a>
+      <a class="side-link" data-page="analytics" onclick="showPage('analytics')"><span class="ico"><svg class="i"><use href="#i-bars"/></svg></span>Analytics</a>
+      <a class="side-link" data-page="billing" onclick="showPage('billing')"><span class="ico"><svg class="i"><use href="#i-card"/></svg></span>Billing</a>
+      <a class="side-link" data-page="settings" onclick="showPage('settings')"><span class="ico"><svg class="i"><use href="#i-gear"/></svg></span>Settings</a>
+      <div class="side-bottom">
+        <div class="side-user"><div class="side-avatar"></div><div><div id="sideUserName" style="font-weight:600;">Your Business</div><div style="color:var(--text-faint); font-size:12px;">Growth plan</div></div></div>
+        <a class="side-link" onclick="exitApp()"><span class="ico"><svg class="i"><use href="#i-logout"/></svg></span>Log out</a>
+      </div>
+    </aside>
+
+    <main class="app-main">
+
+      <!-- Dashboard -->
+      <div class="app-page active" id="page-dashboard">
+        <div class="page-head"><div><h1 id="dashGreeting">Good morning, there.</h1><p>Your AI Marketing Department is working.</p></div><button class="btn btn-primary" onclick="showPage('assistant')">Ask your Marketing Department</button></div>
+        <div class="metric-grid">
+          <div class="metric-card"><div class="label">Marketing Score</div><div class="value">78</div><div class="delta up">↑ 6 this week</div></div>
+          <div class="metric-card"><div class="label">Leads</div><div class="value">142</div><div class="delta up">↑ 18%</div></div>
+          <div class="metric-card"><div class="label">Ad Spend</div><div class="value">$612</div><div class="delta down">of $1,000 budget</div></div>
+          <div class="metric-card"><div class="label">Conversions</div><div class="value">37</div><div class="delta up">↑ 9%</div></div>
+        </div>
+        <div class="dash-grid">
+          <div class="panel">
+            <h3>What Postly did today</h3>
+            <ul class="did-today">
+              <li><span class="ck">✓</span>Created 4 new creatives for the summer promo campaign</li>
+              <li><span class="ck">✓</span>Analyzed 5 competitors and flagged 1 new opportunity</li>
+              <li><span class="ck">✓</span>Optimized budget allocation on the Instagram campaign</li>
+              <li><span class="ck">✓</span>Found a new audience opportunity — women 25–34, nearby</li>
+              <li><span class="ck">✓</span>Drafted next week's content calendar</li>
+              <li><span class="ck">✓</span>Improved 2 pages for AI Search visibility</li>
+            </ul>
+          </div>
+          <div class="panel">
+            <h3>Your AI Team</h3>
+            <div class="agent-pill"><span class="dot"></span><span class="name">Strategy Agent</span><span class="status">Idle</span></div>
+            <div class="agent-pill"><span class="dot"></span><span class="name">Creative Agent</span><span class="status">Working</span></div>
+            <div class="agent-pill"><span class="dot"></span><span class="name">Content Agent</span><span class="status">Working</span></div>
+            <div class="agent-pill"><span class="dot" style="background:var(--amber);"></span><span class="name">Ads Agent</span><span class="status">Awaiting approval</span></div>
+            <div class="agent-pill"><span class="dot"></span><span class="name">Growth Agent</span><span class="status">Optimizing</span></div>
+            <div class="agent-pill"><span class="dot"></span><span class="name">AI Search Agent</span><span class="status">Working</span></div>
+          </div>
+        </div>
+        <div class="panel">
+          <h3>Needs your approval</h3>
+          <div class="campaign-card" style="margin:0;">
+            <div class="campaign-top">
+              <div><h4>Summer promo — Instagram + Facebook</h4><p style="font-size:13px; color:var(--text-dim);">Prepared by the Ads Agent, 2 hours ago</p></div>
+              <span class="status-chip pending">Approval required</span>
+            </div>
+            <div class="campaign-meta">
+              <div><div class="k">Budget</div><div class="v">$20/day</div></div>
+              <div><div class="k">Duration</div><div class="v">7 days</div></div>
+              <div><div class="k">Audience</div><div class="v">Local, 25–44</div></div>
+              <div><div class="k">Expected leads</div><div class="v">~35</div></div>
+            </div>
+            <div class="campaign-actions">
+              <button class="btn btn-primary btn-sm" onclick="approveCampaign(this)">Approve & Launch</button>
+              <button class="btn btn-ghost btn-sm">Edit</button>
+              <button class="btn btn-ghost btn-sm">Ask an Expert</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- AI Assistant -->
+      <div class="app-page" id="page-assistant">
+        <div class="page-head"><div><h1>Ask your Marketing Department.</h1><p>Tell it what you need — it plans, builds, and asks for approval when it matters.</p></div></div>
+        <div class="chat-shell">
+          <div class="chat-log" id="chatLog">
+            <div class="msg ai"><div class="who">Postly</div>Hi! I'm your AI Marketing Department. Tell me what you're trying to achieve and I'll get to work.</div>
+          </div>
+          <div class="chat-suggest">
+            <div class="suggest-chip" onclick="sendSuggest('I need more customers.')">I need more customers.</div>
+            <div class="suggest-chip" onclick="sendSuggest('Create an Instagram campaign for me.')">Create an Instagram campaign</div>
+            <div class="suggest-chip" onclick="sendSuggest('Why are my ads performing badly?')">Why are my ads underperforming?</div>
+            <div class="suggest-chip" onclick="sendSuggest('What are my competitors doing?')">What are my competitors doing?</div>
+          </div>
+          <form class="chat-input-row" onsubmit="event.preventDefault();">
+            <input type="text" id="chatInput" placeholder="Ask anything about your marketing…" onkeydown="if(event.key==='Enter'){event.preventDefault(); sendChat();}">
+            <button class="btn btn-primary" type="button" onclick="sendChat()">Send</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- AI Team -->
+      <div class="app-page" id="page-team">
+        <div class="page-head"><div><h1>Your AI Marketing Team</h1><p>Each agent has a job. Together, they run your marketing.</p></div></div>
+        <div class="team-grid">
+          <div class="team-card"><div class="icon"><svg class="i"><use href="#i-compass"/></svg></div><h4>Strategy Agent</h4><p>Sets the marketing strategy based on your goal and budget.</p></div>
+          <div class="team-card"><div class="icon"><svg class="i"><use href="#i-spark"/></svg></div><h4>Creative Agent</h4><p>Produces visual ideas, designs, and creative concepts.</p></div>
+          <div class="team-card"><div class="icon"><svg class="i"><use href="#i-pen"/></svg></div><h4>Content Agent</h4><p>Writes captions, ad copy, hooks, and scripts.</p></div>
+          <div class="team-card"><div class="icon"><svg class="i"><use href="#i-target"/></svg></div><h4>Ads Agent</h4><p>Builds and manages your ad campaigns end to end.</p></div>
+          <div class="team-card"><div class="icon"><svg class="i"><use href="#i-trend"/></svg></div><h4>Growth Agent</h4><p>Monitors performance and improves results continuously.</p></div>
+          <div class="team-card"><div class="icon"><svg class="i"><use href="#i-orbit"/></svg></div><h4>AI Search Agent</h4><p>Works to get your business found in AI-powered search.</p></div>
+        </div>
+      </div>
+
+      <!-- Campaigns -->
+      <div class="app-page" id="page-campaigns">
+        <div class="page-head"><div><h1>Campaigns</h1><p>Postly builds these — you review and approve.</p></div>
+          <div class="platform-picker">
+            <button class="btn btn-primary" onclick="togglePlatformMenu(event)">+ New Campaign</button>
+            <div class="platform-menu" id="platformMenu">
+              <div class="pm-label">Which platform?</div>
+              <button type="button" class="platform-option" onclick="pickCampaignPlatform('Instagram')"><span class="po-icon">IG</span>Instagram</button>
+              <button type="button" class="platform-option" onclick="pickCampaignPlatform('Facebook')"><span class="po-icon">FB</span>Facebook</button>
+              <button type="button" class="platform-option" onclick="pickCampaignPlatform('Google')"><span class="po-icon"><svg class="i" style="width:14px;height:14px;"><use href="#i-orbit"/></svg></span>Google</button>
+              <button type="button" class="platform-option" onclick="pickCampaignPlatform('TikTok')"><span class="po-icon">TT</span>TikTok</button>
+              <button type="button" class="platform-option" onclick="pickCampaignPlatform('ChatGPT')"><span class="po-icon" style="font-size:9px;">GPT</span>ChatGPT Ads</button>
+            </div>
+          </div>
+        </div>
+        <div class="tabs">
+          <span class="tab-btn active">Active (2)</span><span class="tab-btn">Draft (1)</span><span class="tab-btn">Completed (5)</span>
+        </div>
+        <div class="campaign-card">
+          <div class="campaign-top"><div><h4>Summer promo — Instagram + Facebook</h4><p style="font-size:13px; color:var(--text-dim);">Prepared by the Ads Agent</p></div><span class="status-chip pending">Approval required</span></div>
+          <div class="campaign-meta">
+            <div><div class="k">Budget</div><div class="v">$20/day</div></div>
+            <div><div class="k">Duration</div><div class="v">7 days</div></div>
+            <div><div class="k">Audience</div><div class="v">Local, 25–44</div></div>
+            <div><div class="k">Expected leads</div><div class="v">~35</div></div>
+          </div>
+          <div class="campaign-actions"><button class="btn btn-primary btn-sm" onclick="approveCampaign(this)">Approve & Launch</button><button class="btn btn-ghost btn-sm">Edit</button><button class="btn btn-ghost btn-sm">Ask an Expert</button></div>
+        </div>
+        <div class="campaign-card">
+          <div class="campaign-top"><div><h4>New customer acquisition — Google</h4><p style="font-size:13px; color:var(--text-dim);">Running for 4 days</p></div><span class="status-chip live">Live</span></div>
+          <div class="campaign-meta">
+            <div><div class="k">Spend</div><div class="v">$84</div></div>
+            <div><div class="k">CPA</div><div class="v">$6.20</div></div>
+            <div><div class="k">ROAS</div><div class="v">3.4x</div></div>
+            <div><div class="k">Leads</div><div class="v">14</div></div>
+          </div>
+        </div>
+        <div class="campaign-card">
+          <div class="campaign-top"><div><h4>Product launch teaser</h4><p style="font-size:13px; color:var(--text-dim);">Prepared, not yet launched</p></div><span class="status-chip draft">Draft</span></div>
+          <div class="campaign-actions"><button class="btn btn-ghost btn-sm">Continue setup</button></div>
+        </div>
+      </div>
+
+      <!-- Content -->
+      <div class="app-page" id="page-content">
+        <div class="page-head"><div><h1>Content</h1><p>Everything your AI team has created, organized in one place.</p></div><button class="btn btn-primary">Create with AI</button></div>
+        <div class="tabs"><span class="tab-btn active">Calendar</span><span class="tab-btn">Posts</span><span class="tab-btn">Reels</span><span class="tab-btn">Stories</span></div>
+        <div class="panel">
+          <div class="row-list">
+            <div class="rl-item"><div class="rl-left"><div class="rl-thumb"><svg class="i"><use href="#i-image"/></svg></div><div>Summer promo — carousel post <div style="color:var(--text-faint); font-size:12.5px;">Scheduled for tomorrow, 9:00 AM</div></div></div><span class="coming-soon-badge">Scheduled</span></div>
+            <div class="rl-item"><div class="rl-left"><div class="rl-thumb"><svg class="i"><use href="#i-video"/></svg></div><div>Behind-the-scenes reel <div style="color:var(--text-faint); font-size:12.5px;">Draft — awaiting your review</div></div></div><span class="coming-soon-badge">Draft</span></div>
+            <div class="rl-item"><div class="rl-left"><div class="rl-thumb"><svg class="i"><use href="#i-doc"/></svg></div><div>Weekly content plan <div style="color:var(--text-faint); font-size:12.5px;">Generated by the Content Agent</div></div></div><span class="coming-soon-badge">Ready</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Ads -->
+      <div class="app-page" id="page-ads">
+        <div class="page-head"><div><h1>Ads</h1><p>Postly manages the ads — this is the plain-English view of it.</p></div></div>
+        <div class="metric-grid">
+          <div class="metric-card"><div class="label">Total spend</div><div class="value">$612</div><div class="delta">this month</div></div>
+          <div class="metric-card"><div class="label">CPA</div><div class="value">$6.80</div><div class="delta up">↓ improving</div></div>
+          <div class="metric-card"><div class="label">ROAS</div><div class="value">3.1x</div><div class="delta up">↑ 0.4x</div></div>
+          <div class="metric-card"><div class="label">CTR</div><div class="value">2.4%</div><div class="delta up">above average</div></div>
+        </div>
+        <div class="panel"><h3>Active campaigns</h3>
+          <div class="row-list">
+            <div class="rl-item"><div class="rl-left"><div class="rl-thumb"><svg class="i"><use href="#i-target"/></svg></div>Summer promo — Instagram</div><span>$20/day</span></div>
+            <div class="rl-item"><div class="rl-left"><div class="rl-thumb"><svg class="i"><use href="#i-orbit"/></svg></div>New customer acquisition — Google</div><span>$18/day</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Competitors -->
+      <div class="app-page" id="page-competitors">
+        <div class="page-head"><div><h1>Competitors</h1><p>Postly watches them continuously — you act on what matters.</p></div></div>
+        <div class="panel">
+          <div class="comp-row"><span>Riverstone Cafe</span><span class="comp-tag">New offer detected</span></div>
+          <div class="comp-row"><span>Urban Fit Studio</span><span class="comp-tag">3 new ads</span></div>
+          <div class="comp-row"><span>Nova Skincare</span><span class="comp-tag">Price drop</span></div>
+          <div class="comp-row"><span>Bright Leaf Studio</span><span class="comp-tag">Trending post</span></div>
+          <button class="btn btn-primary btn-sm" style="margin-top:16px;" onclick="sendSuggest('Create a counter campaign against my competitors.')">Create Counter Campaign</button>
+        </div>
+      </div>
+
+      <!-- AI Search -->
+      <div class="app-page" id="page-aisearch">
+        <div class="page-head"><div><h1>AI Search</h1><p>Get discovered by AI.</p></div></div>
+        <div class="panel">
+          <div class="score-ring-mini"><div class="score-num">72<span style="font-size:16px; color:var(--text-dim);">/100</span></div><span style="color:var(--text-dim);">AI Visibility Score</span></div>
+          <div class="mini-bar-row"><span>Brand Presence</span><span>81%</span></div><div class="mini-bar"><div style="width:81%;"></div></div>
+          <div class="mini-bar-row"><span>Website Content</span><span>58%</span></div><div class="mini-bar"><div style="width:58%;"></div></div>
+          <div class="mini-bar-row"><span>Local SEO</span><span>64%</span></div><div class="mini-bar"><div style="width:64%;"></div></div>
+          <div class="mini-bar-row"><span>Business Information</span><span>90%</span></div><div class="mini-bar"><div style="width:90%;"></div></div>
+          <div class="mini-bar-row"><span>Authority & Mentions</span><span>47%</span></div><div class="mini-bar"><div style="width:47%;"></div></div>
+          <button class="btn btn-primary btn-sm" style="margin-top:10px;" onclick="showToast('AI Search Agent is now improving your visibility.')">Improve My AI Visibility</button>
+        </div>
+      </div>
+
+      <!-- Analytics -->
+      <div class="app-page" id="page-analytics">
+        <div class="page-head"><div><h1>Analytics</h1><p>Everything your marketing is doing, in one view.</p></div></div>
+        <div class="metric-grid">
+          <div class="metric-card"><div class="label">Marketing Score</div><div class="value">78</div><div class="delta up">↑ 6</div></div>
+          <div class="metric-card"><div class="label">Sales</div><div class="value">$4,120</div><div class="delta up">↑ 12%</div></div>
+          <div class="metric-card"><div class="label">Growth</div><div class="value">+21%</div><div class="delta up">vs last month</div></div>
+          <div class="metric-card"><div class="label">Conversions</div><div class="value">37</div><div class="delta up">↑ 9%</div></div>
+        </div>
+        <div class="panel"><h3>Trend</h3><p style="color:var(--text-dim); font-size:14px;">Leads and conversions have grown steadily since Autopilot was enabled three weeks ago.</p></div>
+      </div>
+
+      <!-- Billing -->
+      <div class="app-page" id="page-billing">
+        <div class="page-head"><div><h1>Billing</h1><p>Manage your plan, payment method, and invoices.</p></div></div>
+        <div class="panel">
+          <div class="channel-row"><div class="channel-name">Current plan</div><div>Growth — $249/month</div></div>
+          <div class="channel-row"><div class="channel-name">Next billing date</div><div>October 15, 2026</div></div>
+          <div class="channel-row"><div class="channel-name">Payment method</div><div>Visa •••• 4417</div></div>
+        </div>
+        <div class="panel">
+          <div style="display:flex; gap:10px;">
+            <button class="btn btn-ghost btn-sm">Upgrade plan</button>
+            <button class="btn btn-ghost btn-sm">Change payment method</button>
+            <button class="btn btn-text btn-sm" style="color:var(--red);">Cancel subscription</button>
+          </div>
+        </div>
+        <div class="panel"><h3>Invoices</h3>
+          <div class="row-list">
+            <div class="rl-item"><span>Sep 15, 2026</span><span>$249.00</span></div>
+            <div class="rl-item"><span>Aug 15, 2026</span><span>$249.00</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Settings -->
+      <div class="app-page" id="page-settings">
+        <div class="page-head"><div><h1>Settings</h1><p>Your profile and business details.</p></div></div>
+        <div class="panel">
+          <div class="field-row2"><div class="field-group"><label>Business name</label><input type="text" id="settingsBizName"></div><div class="field-group"><label>Website</label><input type="text" placeholder="yourbusiness.com"></div></div>
+          <button class="btn btn-primary btn-sm">Save changes</button>
+        </div>
+        <div class="panel">
+          <h3>Connected accounts</h3>
+          <div class="channel-row"><div class="channel-name"><span class="ch-icon">IG</span><div>Instagram<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" onclick="connectChannel(this,'Instagram','@riverside.coffee')">Connect</button></div>
+          <div class="channel-row"><div class="channel-name"><span class="ch-icon">FB</span><div>Facebook<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" onclick="connectChannel(this,'Facebook','Riverside Coffee Co.')">Connect</button></div>
+          <div class="channel-row"><div class="channel-name"><span class="ch-icon"><svg class="i" style="width:15px;height:15px;"><use href="#i-target"/></svg></span><div>Meta Ads<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" onclick="connectChannel(this,'Meta Ads','Ad account 4471')">Connect</button></div>
+          <div class="channel-row"><div class="channel-name"><span class="ch-icon">TT</span><div>TikTok<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" onclick="connectChannel(this,'TikTok','@riverside.coffee')">Connect</button></div>
+          <div class="channel-row"><div class="channel-name"><span class="ch-icon"><svg class="i" style="width:15px;height:15px;"><use href="#i-orbit"/></svg></span><div>Google Business Profile<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" onclick="connectChannel(this,'Google Business Profile','Riverside Coffee Co.')">Connect</button></div>
+        <div class="channel-row"><div class="channel-name"><span class="ch-icon" style="font-size:9px;">GPT</span><div>ChatGPT Ads<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" onclick="connectChannel(this,'ChatGPT Ads','Advertiser account 8821')">Connect</button></div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  const canvas = document.getElementById('starfield');
+  const ctx = canvas.getContext('2d');
+  let stars = [];
+  function resize(){
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    const count = Math.floor((canvas.width * canvas.height) / 5200);
+    stars = Array.from({length: count}, () => ({
+      x: Math.random() * canvas.width,
+      y: Math.random() * canvas.height,
+      r: Math.random() * 1.1 + 0.25,
+      base: Math.random() * 0.45 + 0.15,
+      speed: Math.random() * 0.015 + 0.004,
+      phase: Math.random() * Math.PI * 2
+    }));
+  }
+  function draw(t){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle = '#ffffff';
+    for(const s of stars){
+      const tw = s.base + Math.sin(t*s.speed + s.phase) * 0.25;
+      ctx.globalAlpha = Math.max(0, tw);
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    requestAnimationFrame(draw);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+  requestAnimationFrame(draw);
+})();
+
+function toggleTheme(){
+  const root = document.documentElement;
+  const isLight = root.getAttribute('data-theme') === 'light';
+  root.setAttribute('data-theme', isLight ? 'dark' : 'light');
+}
+
+let onbStep = 1;
+let bizName = "Your Business";
+
+function openScreen(name){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById('screen-'+name).classList.add('active');
+  document.body.style.overflow='hidden';
+  window.scrollTo(0,0);
+}
+function closeScreen(){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.body.style.overflow='auto';
+}
+
+function startOnboarding(){
+  const val = document.getElementById('regBizName').value;
+  if(val) { bizName = val; document.getElementById('onbBizName').value = val; }
+  onbStep = 1;
+  document.querySelectorAll('.onb-step').forEach(s=>s.classList.remove('active'));
+  document.querySelector('.onb-step[data-step="1"]').classList.add('active');
+  updateOnbProgress();
+  openScreen('onboarding');
+}
+
+function updateOnbProgress(){
+  const dots = document.querySelectorAll('#onbProgress > div');
+  dots.forEach((d,i)=>{
+    d.classList.remove('current','done');
+    if(i < onbStep-1) d.classList.add('done');
+    else if(i === onbStep-1) d.classList.add('current');
+  });
+}
+
+function onbNext(step){
+  onbStep = step+1;
+  document.querySelectorAll('.onb-step').forEach(s=>s.classList.remove('active'));
+  document.querySelector('.onb-step[data-step="'+onbStep+'"]').classList.add('active');
+  updateOnbProgress();
+}
+function onbBack(step){
+  onbStep = step-1;
+  document.querySelectorAll('.onb-step').forEach(s=>s.classList.remove('active'));
+  document.querySelector('.onb-step[data-step="'+onbStep+'"]').classList.add('active');
+  updateOnbProgress();
+}
+function onbFinish(){
+  onbStep = 6;
+  document.querySelectorAll('.onb-step').forEach(s=>s.classList.remove('active'));
+  document.querySelector('.onb-step[data-step="6"]').classList.add('active');
+  document.getElementById('onbProgress').querySelectorAll('div').forEach(d=>{d.classList.add('done'); d.classList.remove('current');});
+}
+
+function selectChoice(el, groupId){
+  document.getElementById(groupId).querySelectorAll('.choice-card').forEach(c=>c.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+function enterApp(){
+  const nameInput = document.getElementById('onbBizName');
+  if(nameInput && nameInput.value) bizName = nameInput.value;
+  document.getElementById('sideUserName').textContent = bizName;
+  document.getElementById('dashGreeting').textContent = 'Good morning, ' + bizName.split(' ')[0] + '.';
+  document.getElementById('settingsBizName').value = bizName;
+  openScreen('app');
+  showPage('dashboard');
+}
+function exitApp(){
+  closeScreen();
+}
+
+function showPage(name){
+  document.querySelectorAll('.app-page').forEach(p=>p.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  document.querySelectorAll('.side-link').forEach(l=>l.classList.remove('active'));
+  const link = document.querySelector('.side-link[data-page="'+name+'"]');
+  if(link) link.classList.add('active');
+}
+
+function approveCampaign(btn){
+  const card = btn.closest('.campaign-card');
+  const chip = card.querySelector('.status-chip');
+  chip.textContent = 'Live';
+  chip.className = 'status-chip live';
+  card.querySelector('.campaign-actions').innerHTML = '<span style="color:var(--green); font-size:13.5px;">✓ Launched — Growth Agent is now optimizing.</span>';
+  showToast('Campaign approved and launched.');
+}
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(()=>t.classList.remove('show'), 3000);
+}
+
+function connectChannel(btn, platform, accountLabel){
+  const row = btn.closest('.channel-row');
+  const sub = row.querySelector('.ch-sub');
+  const isConnected = btn.classList.contains('btn-connected');
+  if(isConnected){
+    btn.textContent = 'Connect';
+    btn.classList.remove('btn-connected');
+    if(sub){ sub.style.display = 'none'; sub.textContent = ''; }
+    return;
+  }
+  btn.textContent = 'Connected';
+  btn.classList.add('btn-connected');
+  if(sub){ sub.textContent = accountLabel; sub.style.display = 'block'; }
+  showToast(platform + ' connected — ' + accountLabel);
+}
+
+const aiResponses = {
+  "I need more customers.": "I've looked at your business and your goal — I'm putting together a campaign aimed at local customers now. I'll have it ready for your review in a moment.",
+  "Create an Instagram campaign for me.": "Building an Instagram campaign now: local audience, carousel creative, $20/day. I'll send it to Campaigns for your approval.",
+  "Create a Facebook campaign for me.": "Building a Facebook campaign now: local audience, single-image creative, $20/day. I'll send it to Campaigns for your approval.",
+  "Create a Google campaign for me.": "Building a Google Search campaign now: intent-based keywords around your business, $18/day. I'll send it to Campaigns for your approval.",
+  "Create a TikTok campaign for me.": "Building a TikTok campaign now: short-form video creative, younger local audience, $15/day. I'll send it to Campaigns for your approval.",
+  "Create a ChatGPT campaign for me.": "Building a ChatGPT Ads campaign now: sponsored card matched to relevant conversations, $30/day minimum for this channel. I'll send it to Campaigns for your approval.",
+  "Why are my ads performing badly?": "Your Google campaign's CPA rose 18% this week — mostly from one underperforming ad set. I'm pausing it and reallocating that budget to your best-performing creative.",
+  "What are my competitors doing?": "Riverstone Cafe just launched a new offer and Urban Fit Studio added 3 new ads this week. Want me to prepare a counter campaign?",
+  "Create a campaign for me.": "On it — tell me the goal and I'll build the full plan, or say 'more customers' and I'll use your current goal.",
+  "Create a counter campaign against my competitors.": "I've drafted a counter campaign responding to Riverstone Cafe's new offer. You'll find it waiting for approval in Campaigns."
+};
+
+function sendSuggest(text){
+  showPage('assistant');
+  document.getElementById('chatInput').value = text;
+  sendChat();
+}
+
+function togglePlatformMenu(e){
+  e.stopPropagation();
+  document.getElementById('platformMenu').classList.toggle('open');
+}
+function pickCampaignPlatform(platform){
+  document.getElementById('platformMenu').classList.remove('open');
+  sendSuggest('Create a ' + platform + ' campaign for me.');
+}
+document.addEventListener('click', function(e){
+  const menu = document.getElementById('platformMenu');
+  if(menu && !e.target.closest('.platform-picker')){
+    menu.classList.remove('open');
+  }
+});
+
+function sendChat(){
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if(!text) return;
+  const log = document.getElementById('chatLog');
+  const userMsg = document.createElement('div');
+  userMsg.className = 'msg user';
+  userMsg.textContent = text;
+  log.appendChild(userMsg);
+  input.value = '';
+  log.scrollTop = log.scrollHeight;
+
+  setTimeout(()=>{
+    const reply = aiResponses[text] || "Got it — I'm on it. I'll prepare the work and bring it to you for approval if it needs your sign-off.";
+    const aiMsg = document.createElement('div');
+    aiMsg.className = 'msg ai';
+    aiMsg.innerHTML = '<div class="who">Postly</div>' + reply;
+    log.appendChild(aiMsg);
+    log.scrollTop = log.scrollHeight;
+  }, 550);
+}
+
+document.querySelectorAll('.goal-chip').forEach(chip=>{
+  chip.addEventListener('click', ()=>{
+    document.querySelectorAll('.goal-chip').forEach(c=>c.classList.remove('active'));
+    chip.classList.add('active');
+  });
+});
+
+(function(){
+  const scene = document.querySelector('.space-scene');
+  if(!scene) return;
+  window.addEventListener('scroll', ()=>{
+    const y = window.scrollY;
+    if(y < 700){
+      scene.style.transform = 'translateY(' + (y * -0.06) + 'px)';
+    }
+  }, {passive:true});
+})();
+</script>
+</body>
+</html>
