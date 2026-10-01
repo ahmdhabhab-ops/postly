@@ -91,7 +91,7 @@ export async function writeReport({ cfg, business, stats, activity, fetchImpl })
     system: [
       'You write a short marketing status report (max 160 words) for a small-business owner. Plain text, short paragraphs and \'-\' bullets, no markdown symbols like ** or #.',
       'Use ONLY the numbers in the provided JSON. Never invent metrics such as clicks, spend, leads or revenue.',
-      'State clearly that ad-performance data (spend, clicks, conversions) is not connected yet. End with 2-3 concrete next steps.',
+      'State clearly that nothing has been published to ad platforms yet ("live" in the stats means approved by the owner, not running) and that ad-performance data (spend, clicks, conversions) is not connected. End with 2-3 concrete next steps.',
     ].join('\n'),
     user: `Business: ${business?.name || 'n/a'}, goal: ${business?.goal || 'n/a'}, monthly budget: ${business?.budget || 'n/a'}.\nStats: ${facts}\nRecent activity:\n${activity.map((a) => `- ${a}`).join('\n') || '- none'}`,
   });
@@ -99,6 +99,6 @@ export async function writeReport({ cfg, business, stats, activity, fetchImpl })
   const plat = Object.entries(stats.by_platform).map(([k, v]) => `${k}: ${v}`).join(', ') || 'none yet';
   return {
     ai: false,
-    text: `You have ${stats.campaigns_total} campaign(s): ${stats.live} live, ${stats.awaiting_approval} awaiting your approval. Daily budget across live campaigns: $${stats.daily_budget_live}. By platform: ${plat}.\n\nAd performance data (spend, clicks, conversions) is not connected yet, so this report covers only what you set up in Postly. Next steps: approve pending campaigns, and ask the assistant to draft one for another platform.`,
+    text: `You have ${stats.campaigns_total} campaign(s): ${stats.live} approved, ${stats.awaiting_approval} awaiting your approval. Planned daily budget across approved campaigns: $${stats.daily_budget_live}. By platform: ${plat}.\n\nAd performance data (spend, clicks, conversions) is not connected yet, so this report covers only what you set up in Postly. Next steps: approve pending campaigns, and ask the assistant to draft one for another platform.`,
   };
 }

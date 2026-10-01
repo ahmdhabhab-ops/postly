@@ -61,7 +61,7 @@ export function buildAssistantContext({ business: b = {}, competitors = [], camp
   }
   if (campaigns.length) {
     lines.push('Campaigns in Postly:');
-    for (const c of campaigns.slice(0, 8)) lines.push(`- ${c.title} - ${c.platform}, ${c.status}, $${c.budget_per_day}/day x ${c.duration_days} days`);
+    for (const c of campaigns.slice(0, 8)) lines.push(`- ${c.title} - ${c.platform}, ${c.status === 'live' ? 'approved by owner (NOT published to the platform yet)' : c.status}, $${c.budget_per_day}/day x ${c.duration_days} days`);
   }
   return lines.join('\n');
 }

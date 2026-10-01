@@ -1107,9 +1107,9 @@ input:focus,select:focus,textarea:focus{outline:none; border-color:var(--violet)
       <div class="app-page active" id="page-dashboard">
         <div class="page-head"><div><h1 id="dashGreeting">Good morning, there.</h1><p>Your AI Marketing Department is working.</p></div><button class="btn btn-primary" onclick="showPage('assistant')">Ask your Marketing Department</button></div>
         <div class="metric-grid">
-          <div class="metric-card"><div class="label">Live campaigns</div><div class="value" id="mLive">0</div><div class="delta">running now</div></div>
+          <div class="metric-card"><div class="label">Approved campaigns</div><div class="value" id="mLive">0</div><div class="delta">not published yet</div></div>
           <div class="metric-card"><div class="label">Awaiting approval</div><div class="value" id="mPending">0</div><div class="delta">need your sign-off</div></div>
-          <div class="metric-card"><div class="label">Daily ad budget</div><div class="value" id="mSpend">$0</div><div class="delta">across live campaigns</div></div>
+          <div class="metric-card"><div class="label">Approved daily budget</div><div class="value" id="mSpend">$0</div><div class="delta">planned, nothing is spent yet</div></div>
           <div class="metric-card"><div class="label">Channels connected</div><div class="value" id="mChannels">0</div><div class="delta">in Settings</div></div>
         </div>
         <div class="dash-grid">
@@ -1181,7 +1181,7 @@ input:focus,select:focus,textarea:focus{outline:none; border-color:var(--violet)
             </div>
           </div>
         </div>
-        <div class="sample-note">Approving a campaign records it as live in Postly. Publishing to the ad platforms starts once those channel integrations go live.</div>
+        <div class="sample-note">Approving a campaign saves your decision in Postly. Nothing is published or spent yet: publishing to the ad platforms starts once those channel integrations go live.</div>
         <div class="tabs" id="campTabs"></div>
         <div id="campaignList"></div>
       </div>
@@ -1582,7 +1582,7 @@ function campaignCard(c){
   const card = document.createElement('div');
   card.className = 'campaign-card';
   const live = c.status === 'live';
-  const chip = live ? '<span class="status-chip live">Live</span>'
+  const chip = live ? '<span class="status-chip live">Approved</span>'
                     : '<span class="status-chip pending">Approval required</span>';
   card.innerHTML =
     '<div class="campaign-top"><div><h4>' + esc(c.title) + '</h4><p style="font-size:13px; color:var(--text-dim);">' +
@@ -1593,7 +1593,7 @@ function campaignCard(c){
       '<div><div class="k">Audience</div><div class="v">' + esc(c.audience) + '</div></div>' +
       '<div><div class="k">Expected leads</div><div class="v">~' + esc(c.expected_leads) + '</div></div>' +
     '</div>' +
-    (live ? '<div class="campaign-actions"><span style="color:var(--green); font-size:13.5px;">✓ Approved — Growth Agent is now optimizing.</span></div>'
+    (live ? '<div class="campaign-actions"><span style="color:var(--green); font-size:13.5px;">✓ Approved. Not published yet: it will not run on ' + esc(c.platform) + ' until that channel integration is live.</span></div>'
           : '<div class="campaign-actions"><button class="btn btn-primary btn-sm" data-act="approve">Approve & Launch</button><button class="btn btn-ghost btn-sm" data-act="discard">Discard</button></div>');
   const btn = card.querySelector('[data-act="approve"]');
   if(btn) btn.addEventListener('click', ()=>approveCampaign(c.id, btn));
@@ -1609,7 +1609,7 @@ function renderCampaigns(){
   };
   const tabs = $('campTabs');
   tabs.innerHTML = '';
-  [['all','All'],['pending','Awaiting approval'],['live','Live']].forEach(([key,label])=>{
+  [['all','All'],['pending','Awaiting approval'],['live','Approved']].forEach(([key,label])=>{
     const t = document.createElement('span');
     t.className = 'tab-btn' + (campFilter===key ? ' active' : '');
     t.textContent = label + ' (' + counts[key] + ')';
