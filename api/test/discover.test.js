@@ -120,3 +120,13 @@ test('several countries: normalised, capped at 6, searched per market, market sa
   assert.ok(calls[0].tools[0].max_uses >= 8 || calls[0].tools[0].max_uses === Math.min(8, 3 + 3 * 2));
   assert.equal((await c.get('/api/competitors')).json.competitors[0].market, 'Lebanon');
 });
+
+test('web search gives up before the proxy timeout instead of hanging', async () => {
+  const { completeWithSearch } = await import('../src/llm.js');
+  let n = 0;
+  const slow = async () => { n++; return new Response(JSON.stringify({ stop_reason: 'pause_turn', content: [] }), { status: 200 }); };
+  const t0 = Date.now();
+  const out = await completeWithSearch({ cfg, system: 's', user: 'u', totalMs: 5100, fetchImpl: async (...a) => { await new Promise((r) => setTimeout(r, 200)); return slow(...a); } });
+  assert.equal(out, null);
+  assert.ok(Date.now() - t0 < 6000 && n >= 1);
+});

@@ -19,18 +19,21 @@ export async function complete({ cfg, system, user, maxTokens = 700, fetchImpl =
 
 // Messages API with the server-side web search tool. Handles `pause_turn` by continuing the same turn.
 // Needs web search enabled for the organisation in the Anthropic Console.
-export async function completeWithSearch({ cfg, system, user, maxTokens = 2000, maxSearches = 5, country, fetchImpl = fetch }) {
+export async function completeWithSearch({ cfg, system, user, maxTokens = 2000, maxSearches = 5, country, totalMs = 110_000, fetchImpl = fetch }) {
   if (!cfg.anthropicApiKey) return null;
   const tool = { type: 'web_search_20260209', name: 'web_search', max_uses: maxSearches };
   if (country) tool.user_location = { type: 'approximate', country };
   const messages = [{ role: 'user', content: user }];
+  const deadline = Date.now() + totalMs;
   try {
     for (let turn = 0; turn < 4; turn++) {
+      const left = deadline - Date.now();
+      if (left < 5000) throw new Error('web search deadline exceeded');
       const res = await fetchImpl('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: { 'x-api-key': cfg.anthropicApiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
         body: JSON.stringify({ model: cfg.anthropicModel, max_tokens: maxTokens, system, tools: [tool], messages }),
-        signal: AbortSignal.timeout(90_000),
+        signal: AbortSignal.timeout(Math.min(90_000, left)),
       });
       if (!res.ok) throw new Error(`anthropic ${res.status}`);
       const data = await res.json();
