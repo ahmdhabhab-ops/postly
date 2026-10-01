@@ -8,8 +8,9 @@
 
 ## What is real vs sample
 Real, stored per user in Postgres: accounts/login, onboarding profile, campaigns (drafted by the assistant, approved by you),
-assistant chat history, channel records, activity feed, WhatsApp sending (operator only).
-Sample data (labelled in the UI): Ads, Analytics, Competitors, AI Search, Content, Billing.
+assistant chat history, activity feed, competitor analysis (reads the competitor's public web page), AI marketing reports
+(written from your Postly data only), WhatsApp sending (operator only).
+Sample data (labelled in the UI): Ads, Analytics numbers, AI Search, Content, Billing. Channel "Connect" buttons show Coming soon.
 Publishing to ad platforms (Meta/Google/TikTok) and OAuth channel connections are not built yet.
 The assistant uses Claude when `ANTHROPIC_API_KEY` is set, otherwise simple built-in replies.
 
@@ -20,6 +21,8 @@ Compose path `./docker-compose.yml`; put the variables from `.env.example` in th
 ## Security model
 - Passwords: scrypt + per-user salt. Sessions: random token, only its SHA-256 stored; cookie is HttpOnly, SameSite=Lax, Secure over HTTPS.
 - CSRF: SameSite cookies + JSON-only bodies + same-origin check. Rate limits on login/register, chat, writes and sends.
+- Competitor URLs are fetched server-side with SSRF protection (http/https on 80/443 only, private/loopback/metadata IPs blocked at connect time,
+  every redirect re-checked, 8s timeout, 400KB cap). Page text is passed to the model as untrusted data. AI endpoints are rate limited per user.
 - WhatsApp token lives only in the server env. Sending is allowed only for emails in `ADMIN_EMAILS` (or `X-API-Key`), so
   normal sign-ups cannot send messages from your number. Webhook: verify token + `X-Hub-Signature-256` check.
   Set Meta callback to `https://YOUR_DOMAIN/api/whatsapp/webhook` (needs a real domain with HTTPS).

@@ -1211,14 +1211,17 @@ input:focus,select:focus,textarea:focus{outline:none; border-color:var(--violet)
 
       <!-- Competitors -->
       <div class="app-page" id="page-competitors">
-        <div class="page-head"><div><h1>Competitors</h1><p>Postly watches them continuously — you act on what matters.</p></div></div>
+        <div class="page-head"><div><h1>Competitors</h1><p>Add a competitor's website — your AI team reads it and tells you how to compete.</p></div></div>
         <div class="panel">
-          <div class="comp-row"><span>Riverstone Cafe</span><span class="comp-tag">New offer detected</span></div>
-          <div class="comp-row"><span>Urban Fit Studio</span><span class="comp-tag">3 new ads</span></div>
-          <div class="comp-row"><span>Nova Skincare</span><span class="comp-tag">Price drop</span></div>
-          <div class="comp-row"><span>Bright Leaf Studio</span><span class="comp-tag">Trending post</span></div>
-          <button class="btn btn-primary btn-sm" style="margin-top:16px;" onclick="sendSuggest('Create a counter campaign against my competitors.')">Create Counter Campaign</button>
+          <h3>Add a competitor</h3>
+          <div class="field-row2">
+            <div class="field-group"><label>Name</label><input type="text" id="compName" maxlength="100" placeholder="e.g. Riverstone Cafe"></div>
+            <div class="field-group"><label>Website</label><input type="text" id="compUrl" maxlength="300" placeholder="riverstonecafe.com"></div>
+          </div>
+          <p class="form-error" id="compError" role="alert"></p>
+          <button class="btn btn-primary btn-sm" id="compAddBtn" onclick="addCompetitor()">Add competitor</button>
         </div>
+        <div id="competitorList"></div>
       </div>
 
       <!-- AI Search -->
@@ -1243,6 +1246,15 @@ input:focus,select:focus,textarea:focus{outline:none; border-color:var(--violet)
           <div class="metric-card"><div class="label">Sales</div><div class="value">$4,120</div><div class="delta up">↑ 12%</div></div>
           <div class="metric-card"><div class="label">Growth</div><div class="value">+21%</div><div class="delta up">vs last month</div></div>
           <div class="metric-card"><div class="label">Conversions</div><div class="value">37</div><div class="delta up">↑ 9%</div></div>
+        </div>
+        <div class="panel">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:6px;">
+            <h3 style="margin:0;">Marketing report</h3>
+            <button class="btn btn-primary btn-sm" id="reportBtn" onclick="generateReport()">Generate report</button>
+          </div>
+          <p style="color:var(--text-dim); font-size:13.5px; margin-bottom:16px;">Written by your AI team from your real Postly data (campaigns and activity). Ad-performance numbers are not included until ad accounts are connected.</p>
+          <p class="form-error" id="reportError" role="alert"></p>
+          <div id="reportList"></div>
         </div>
         <div class="panel"><h3>Trend</h3><p style="color:var(--text-dim); font-size:14px;">Leads and conversions have grown steadily since Autopilot was enabled three weeks ago.</p></div>
       </div>
@@ -1490,6 +1502,8 @@ function showPage(name){
   const link = document.querySelector('.side-link[data-page="'+name+'"]');
   if(link) link.classList.add('active');
   if(name === 'dashboard' || name === 'campaigns') refreshData();
+  if(name === 'competitors') loadCompetitors();
+  if(name === 'analytics') loadReports();
 }
 function showToast(msg){
   const t = $('toast');
@@ -1702,12 +1716,107 @@ document.querySelectorAll('.goal-chip').forEach(chip=>{
   }, {passive:true});
 })();
 
+/* ---------- competitors ---------- */
+async function loadCompetitors(){
+  try{ renderCompetitors((await api('GET','/competitors')).competitors); }
+  catch(e){ showToast(e.message); }
+}
+function renderCompetitors(list){
+  const box = $('competitorList');
+  box.innerHTML = '';
+  if(!list.length){ box.innerHTML = '<p class="empty-note">No competitors yet. Add one above to get started.</p>'; return; }
+  list.forEach(c=>{
+    const panel = document.createElement('div');
+    panel.className = 'panel';
+    const head = document.createElement('div');
+    head.style.cssText = 'display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;';
+    const info = document.createElement('div');
+    const h = document.createElement('h3'); h.style.marginBottom = '4px'; h.textContent = c.name;
+    const u = document.createElement('div'); u.style.cssText = 'color:var(--text-faint); font-size:13px;'; u.textContent = c.url;
+    info.appendChild(h); info.appendChild(u);
+    const actions = document.createElement('div');
+    actions.style.cssText = 'display:flex; gap:8px; flex-wrap:wrap;';
+    const an = document.createElement('button'); an.className = 'btn btn-primary btn-sm'; an.textContent = c.analysis ? 'Re-analyse' : 'Analyse';
+    an.addEventListener('click', ()=>analyseCompetitor(c.id, an));
+    const del = document.createElement('button'); del.className = 'btn btn-ghost btn-sm'; del.textContent = 'Remove';
+    del.addEventListener('click', ()=>removeCompetitor(c.id));
+    actions.appendChild(an); actions.appendChild(del);
+    head.appendChild(info); head.appendChild(actions);
+    panel.appendChild(head);
+    if(c.analysis){
+      const out = document.createElement('div');
+      out.style.cssText = 'white-space:pre-wrap; font-size:14px; color:var(--text-dim); margin-top:18px; padding-top:16px; border-top:1px solid var(--border);';
+      out.textContent = c.analysis;
+      panel.appendChild(out);
+      const meta = document.createElement('div');
+      meta.style.cssText = 'font-size:12px; color:var(--text-faint); margin-top:10px;';
+      meta.textContent = 'AI-written from the public page text. Verify important details yourself.' ;
+      panel.appendChild(meta);
+      const cc = document.createElement('button'); cc.className = 'btn btn-ghost btn-sm'; cc.style.marginTop = '14px';
+      cc.textContent = 'Create counter campaign';
+      cc.addEventListener('click', ()=>sendSuggest('Create an Instagram campaign to compete with ' + c.name + '.'));
+      panel.appendChild(cc);
+    }
+    box.appendChild(panel);
+  });
+}
+async function addCompetitor(){
+  setError('compError','');
+  busy($('compAddBtn'), true);
+  try{
+    await api('POST','/competitors',{ name: $('compName').value, url: $('compUrl').value });
+    $('compName').value = ''; $('compUrl').value = '';
+    await loadCompetitors();
+  }catch(e){ setError('compError', e.message); }
+  busy($('compAddBtn'), false);
+}
+async function analyseCompetitor(id, btn){
+  busy(btn, true); const label = btn.textContent; btn.textContent = 'Analysing…';
+  try{
+    await api('POST','/competitors/'+id+'/analyze');
+    await loadCompetitors();
+  }catch(e){ showToast(e.message); btn.textContent = label; busy(btn, false); }
+}
+async function removeCompetitor(id){
+  if(!window.confirm('Remove this competitor?')) return;
+  try{ await api('DELETE','/competitors/'+id); await loadCompetitors(); }catch(e){ showToast(e.message); }
+}
+
+/* ---------- reports ---------- */
+function renderReports(list){
+  const box = $('reportList');
+  box.innerHTML = '';
+  if(!list.length){ box.innerHTML = '<p class="empty-note">No reports yet. Click “Generate report”.</p>'; return; }
+  list.forEach(r=>{
+    const item = document.createElement('div');
+    item.style.cssText = 'padding:16px 0; border-top:1px solid var(--border);';
+    const when = document.createElement('div');
+    when.style.cssText = 'font-size:12px; color:var(--text-faint); margin-bottom:8px;';
+    when.textContent = new Date(r.created_at).toLocaleString() + (r.ai ? ' · AI-written' : ' · basic summary');
+    const body = document.createElement('div');
+    body.style.cssText = 'white-space:pre-wrap; font-size:14px; color:var(--text-dim);';
+    body.textContent = r.content;
+    item.appendChild(when); item.appendChild(body);
+    box.appendChild(item);
+  });
+}
+async function loadReports(){
+  try{ renderReports((await api('GET','/reports')).reports); }catch(e){}
+}
+async function generateReport(){
+  setError('reportError','');
+  busy($('reportBtn'), true);
+  const btn = $('reportBtn'); const label = btn.textContent; btn.textContent = 'Writing…';
+  try{ await api('POST','/reports'); await loadReports(); }
+  catch(e){ setError('reportError', e.message); }
+  btn.textContent = label; busy(btn, false);
+}
+
 /* ---------- sample-data notices ---------- */
 (function(){
   const notes = {
     content: 'Sample content — the Content Agent will fill this in once your channels are connected.',
     ads: 'Sample numbers — real ad metrics appear once ad accounts are connected.',
-    competitors: 'Sample competitors — real tracking starts once this feature goes live.',
     aisearch: 'Sample score — real AI Search visibility checks are coming soon.',
     analytics: 'Sample numbers — real analytics appear once channels are connected.',
     billing: 'Billing is not active yet. You are on the free trial.'

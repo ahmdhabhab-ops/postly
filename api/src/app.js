@@ -10,6 +10,8 @@ import {
   destroySession, sessionLoader, requireUser, csrfGuard,
 } from './auth.js';
 import { assistantReply, detectCampaignRequest } from './assistant.js';
+import { fetchPublicPage, parsePublicUrl, FetchBlockedError } from './safefetch.js';
+import { analyzeCompetitor, buildStats, writeReport } from './insights.js';
 
 const EMAIL = /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/;
 const CHANNELS = ['Instagram', 'Facebook', 'Meta Ads', 'TikTok', 'Google Business Profile', 'ChatGPT Ads', 'WhatsApp'];
@@ -24,7 +26,7 @@ const str = (v, max, field) => {
   return v.trim();
 };
 
-export function createApp(cfg, { pool, wa = createWhatsAppClient(cfg.whatsapp), onEvent = defaultOnEvent, fetchImpl = fetch } = {}) {
+export function createApp(cfg, { pool, wa = createWhatsAppClient(cfg.whatsapp), onEvent = defaultOnEvent, fetchImpl = fetch, fetchPage = fetchPublicPage } = {}) {
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', cfg.trustProxyHops);
@@ -59,6 +61,7 @@ export function createApp(cfg, { pool, wa = createWhatsAppClient(cfg.whatsapp), 
   const authLimiter = rateLimit({ windowMs: 15 * 60_000, limit: 20, standardHeaders: true, legacyHeaders: false });
   const writeLimiter = rateLimit({ windowMs: 60_000, limit: 60, standardHeaders: true, legacyHeaders: false });
   const chatLimiter = rateLimit({ windowMs: 60_000, limit: 15, standardHeaders: true, legacyHeaders: false });
+  const aiLimiter = rateLimit({ windowMs: 3_600_000, limit: 20, standardHeaders: true, legacyHeaders: false, keyGenerator: (req) => req.user?.id ?? 'anon', validate: false });
   const sendLimiter = rateLimit({ windowMs: 60_000, limit: 20, standardHeaders: true, legacyHeaders: false });
 
   const wrap = (fn) => async (req, res, next) => {
@@ -216,6 +219,60 @@ export function createApp(cfg, { pool, wa = createWhatsAppClient(cfg.whatsapp), 
     const channels = (await pool.query('select count(*)::int as n from channels where user_id=$1', [id])).rows[0].n;
     const activity = (await pool.query('select text, created_at from activity where user_id=$1 order by id desc limit 8', [id])).rows;
     res.json({ ...counts, channels, activity });
+  }));
+
+  // --- competitors ---
+  const competitorRow = (r) => ({ id: r.id, name: r.name, url: r.url, analysis: r.analysis, analyzed_at: r.analyzed_at });
+  api.get('/competitors', requireUser, wrap(async (req, res) => {
+    const { rows } = await pool.query('select * from competitors where user_id=$1 order by created_at', [req.user.id]);
+    res.json({ competitors: rows.map(competitorRow) });
+  }));
+  api.post('/competitors', requireUser, writeLimiter, wrap(async (req, res) => {
+    const name = str(req.body?.name, 100, 'name');
+    let url = str(req.body?.url, 300, 'url');
+    if (!name || !url) throw new ValidationError('Name and website are required');
+    if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
+    try { parsePublicUrl(url); } catch (e) { throw new ValidationError(e.message); }
+    const n = (await pool.query('select count(*)::int as n from competitors where user_id=$1', [req.user.id])).rows[0].n;
+    if (n >= 10) throw new ValidationError('You can track up to 10 competitors');
+    const { rows } = await pool.query('insert into competitors(id,user_id,name,url) values ($1,$2,$3,$4) returning *', [crypto.randomUUID(), req.user.id, name, url]);
+    res.status(201).json({ competitor: competitorRow(rows[0]) });
+  }));
+  api.delete('/competitors/:id', requireUser, writeLimiter, wrap(async (req, res) => {
+    if (!/^[0-9a-f-]{36}$/.test(req.params.id)) return res.status(404).json({ error: 'Not found' });
+    await pool.query('delete from competitors where id=$1 and user_id=$2', [req.params.id, req.user.id]);
+    res.json({ ok: true });
+  }));
+  api.post('/competitors/:id/analyze', requireUser, aiLimiter, wrap(async (req, res) => {
+    if (!/^[0-9a-f-]{36}$/.test(req.params.id)) return res.status(404).json({ error: 'Not found' });
+    const c = (await pool.query('select * from competitors where id=$1 and user_id=$2', [req.params.id, req.user.id])).rows[0];
+    if (!c) return res.status(404).json({ error: 'Not found' });
+    let html;
+    try { html = await fetchPage(c.url); } catch (e) {
+      const msg = e instanceof FetchBlockedError ? e.message : 'Could not load that website';
+      return res.status(422).json({ error: msg });
+    }
+    const business = (await pool.query('select * from businesses where user_id=$1', [req.user.id])).rows[0];
+    const result = await analyzeCompetitor({ cfg, business, competitor: c, html, fetchImpl });
+    const { rows } = await pool.query('update competitors set analysis=$3, analyzed_at=now() where id=$1 and user_id=$2 returning *', [c.id, req.user.id, result.text]);
+    await log(req.user.id, `Analysed competitor ${c.name}`);
+    res.json({ competitor: competitorRow(rows[0]), ai: result.ai });
+  }));
+
+  // --- reports ---
+  api.get('/reports', requireUser, wrap(async (req, res) => {
+    const { rows } = await pool.query('select id, content, ai, created_at from reports where user_id=$1 order by id desc limit 10', [req.user.id]);
+    res.json({ reports: rows });
+  }));
+  api.post('/reports', requireUser, aiLimiter, wrap(async (req, res) => {
+    const id = req.user.id;
+    const camps = (await pool.query('select status, platform, budget_per_day from campaigns where user_id=$1', [id])).rows;
+    const activity = (await pool.query('select text from activity where user_id=$1 order by id desc limit 10', [id])).rows.map((r) => r.text);
+    const business = (await pool.query('select * from businesses where user_id=$1', [id])).rows[0];
+    const stats = buildStats(camps);
+    const out = await writeReport({ cfg, business, stats, activity, fetchImpl });
+    const { rows } = await pool.query('insert into reports(user_id, content, ai, stats) values ($1,$2,$3,$4) returning id, content, ai, created_at', [id, out.text, out.ai, JSON.stringify(stats)]);
+    res.status(201).json({ report: rows[0] });
   }));
 
   // --- WhatsApp send: only the operator (ADMIN_EMAILS session, or X-API-Key) may send ---

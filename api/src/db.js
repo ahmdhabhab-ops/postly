@@ -70,6 +70,25 @@ create table if not exists activity (
   created_at timestamptz not null default now()
 );
 create index if not exists activity_user_idx on activity(user_id, id desc);
+create table if not exists competitors (
+  id uuid primary key,
+  user_id uuid not null references users(id) on delete cascade,
+  name text not null,
+  url text not null,
+  analysis text,
+  analyzed_at timestamptz,
+  created_at timestamptz not null default now()
+);
+create index if not exists competitors_user_idx on competitors(user_id, created_at);
+create table if not exists reports (
+  id bigserial primary key,
+  user_id uuid not null references users(id) on delete cascade,
+  content text not null,
+  ai boolean not null default false,
+  stats text not null default '{}',
+  created_at timestamptz not null default now()
+);
+create index if not exists reports_user_idx on reports(user_id, id desc);
 create table if not exists whatsapp_log (
   id bigserial primary key,
   user_id uuid references users(id) on delete set null,
