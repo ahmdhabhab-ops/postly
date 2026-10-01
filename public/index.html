@@ -1627,6 +1627,28 @@ function briefToText(c){
   if(b.kpis.length) L.push('Track: ' + b.kpis.join(', '));
   return L.join('\n');
 }
+/* Clipboard API only works on HTTPS; on plain HTTP fall back to execCommand, then to a box the user can copy from. */
+async function copyText(text, card){
+  try{
+    if(navigator.clipboard && window.isSecureContext){ await navigator.clipboard.writeText(text); showToast('Plan copied. Paste it when you create the ad.'); return; }
+  }catch(e){}
+  const ta = document.createElement('textarea');
+  ta.value = text; ta.readOnly = true; ta.style.cssText = 'position:fixed; top:-1000px; opacity:0;';
+  document.body.appendChild(ta); ta.select();
+  let ok = false;
+  try{ ok = document.execCommand('copy'); }catch(e){}
+  ta.remove();
+  if(ok){ showToast('Plan copied. Paste it when you create the ad.'); return; }
+  // last resort: show the text selected, ready for Ctrl+C
+  let box = card.querySelector('.copy-box');
+  if(!box){
+    box = document.createElement('textarea'); box.className = 'copy-box'; box.readOnly = true; box.rows = 12;
+    box.style.cssText = 'width:100%; margin-top:12px;';
+    card.appendChild(box);
+  }
+  box.value = text; box.focus(); box.select();
+  showToast('Press Ctrl+C to copy the plan.');
+}
 function campaignCard(c){
   const card = document.createElement('div');
   card.className = 'campaign-card';
@@ -1675,10 +1697,7 @@ function campaignCard(c){
   const actions = card.querySelector('.card-actions');
   const mk = (label, cls, fn)=>{ const x = document.createElement('button'); x.className = 'btn btn-sm ' + cls; x.textContent = label; x.addEventListener('click', ()=>fn(x)); actions.appendChild(x); return x; };
   if(!live) mk('Approve & Launch', 'btn-primary', (x)=>approveCampaign(c.id, x));
-  if(b) mk('Copy plan', 'btn-ghost', async ()=>{
-    try{ await navigator.clipboard.writeText(briefToText(c)); showToast('Plan copied. Paste it when you create the ad.'); }
-    catch(e){ showToast('Could not copy. Select the text manually.'); }
-  });
+  if(b) mk('Copy plan', 'btn-ghost', ()=>copyText(briefToText(c), card));
   mk(b ? 'Rewrite plan' : 'Create plan', 'btn-ghost', async (x)=>{
     busy(x, true); x.textContent = 'Writing…';
     try{ await api('POST','/campaigns/'+c.id+'/plan'); await refreshData(); }
