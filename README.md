@@ -1,20 +1,28 @@
 # Postly
 
 - `public/` static frontend (nginx)
-- `api/` Node/Express backend for the WhatsApp Cloud API
-- nginx proxies `/api/*` to the `api` container; the `api` container has no published port.
+- `api/` Node/Express backend: accounts (email + password, HttpOnly session cookie), business profile,
+  campaigns, assistant chat, channels, WhatsApp Cloud API
+- `db` Postgres 16 (internal only)
+- nginx proxies `/api/*` to the `api` container; `api` and `db` publish no ports.
 
-## Deploy
-```
-cp .env.example .env   # fill in secrets
-docker compose up -d --build
-```
-Site: served by Dokploy/Traefik on your domain (see below). Without Dokploy, add `ports: ["3001:3000"]` to the web service.
+## What is real vs sample
+Real, stored per user in Postgres: accounts/login, onboarding profile, campaigns (drafted by the assistant, approved by you),
+assistant chat history, channel records, activity feed, WhatsApp sending (operator only).
+Sample data (labelled in the UI): Ads, Analytics, Competitors, AI Search, Content, Billing.
+Publishing to ad platforms (Meta/Google/TikTok) and OAuth channel connections are not built yet.
+The assistant uses Claude when `ANTHROPIC_API_KEY` is set, otherwise simple built-in replies.
+
+## Deploy (Dokploy)
+Compose path `./docker-compose.yml`; put the variables from `.env.example` in the Environment tab
+(`DB_PASSWORD` is required). Domains tab: service `web`, port `3000`.
 
 ## Security model
-- Meta access token lives only in `.env` -> api container env. Never in the image, never in `public/`, never in responses.
-- `POST /api/whatsapp/send` and `/send-template` require header `X-API-Key: $ADMIN_API_KEY` (rate limited, input validated).
-  Call them from trusted server code. Do NOT put ADMIN_API_KEY in browser JS; to call from the UI,
-  add real user auth to the API first.
-- Webhook `GET/POST /api/whatsapp/webhook`: verify token on handshake, `X-Hub-Signature-256` HMAC check on events.
-  In Meta dashboard set callback URL to `https://YOUR_DOMAIN/api/whatsapp/webhook` (HTTPS required; put TLS in front).
+- Passwords: scrypt + per-user salt. Sessions: random token, only its SHA-256 stored; cookie is HttpOnly, SameSite=Lax, Secure over HTTPS.
+- CSRF: SameSite cookies + JSON-only bodies + same-origin check. Rate limits on login/register, chat, writes and sends.
+- WhatsApp token lives only in the server env. Sending is allowed only for emails in `ADMIN_EMAILS` (or `X-API-Key`), so
+  normal sign-ups cannot send messages from your number. Webhook: verify token + `X-Hub-Signature-256` check.
+  Set Meta callback to `https://YOUR_DOMAIN/api/whatsapp/webhook` (needs a real domain with HTTPS).
+
+## Tests
+`cd api && TEST_DATABASE_URL=postgres://... npm test` (needs a Postgres).

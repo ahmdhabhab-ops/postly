@@ -565,6 +565,11 @@ input:focus,select:focus,textarea:focus{outline:none; border-color:var(--violet)
 }
 .platform-option:hover{background:var(--hover-tint);}
 .platform-option .po-icon{width:26px; height:26px; border-radius:7px; background:var(--surface-2); display:flex; align-items:center; justify-content:center; font-size:10.5px; font-weight:700; font-family:var(--font-display); flex-shrink:0;}
+.form-error{color:var(--red); font-size:13.5px; margin:0 0 14px; min-height:0;}
+.form-error:empty{display:none;}
+.sample-note{font-size:12.5px; color:var(--text-faint); border:1px dashed var(--border-strong); border-radius:var(--radius-sm); padding:9px 14px; margin-bottom:22px;}
+.empty-note{color:var(--text-faint); font-size:14px; padding:6px 0;}
+.btn[disabled]{opacity:0.5; cursor:not-allowed;}
 </style>
 </head>
 <body>
@@ -934,19 +939,20 @@ input:focus,select:focus,textarea:focus{outline:none; border-color:var(--violet)
       <div class="nav-logo"><span class="dot"></span><span class="shine-text">postly.media</span></div>
       <h2>Create your Postly account</h2>
       <p class="sub-center">Set up your AI Marketing Department in minutes.</p>
-      <form onsubmit="event.preventDefault();">
+      <form onsubmit="event.preventDefault(); submitRegister();">
         <div class="field-row2">
-          <div class="field-group"><label>First name</label><input type="text"></div>
-          <div class="field-group"><label>Last name</label><input type="text"></div>
+          <div class="field-group"><label>First name</label><input type="text" id="regFirst" autocomplete="given-name"></div>
+          <div class="field-group"><label>Last name</label><input type="text" id="regLast" autocomplete="family-name"></div>
         </div>
         <div class="field-group"><label>Business name</label><input type="text" id="regBizName" placeholder="e.g. Riverside Coffee Co."></div>
-        <div class="field-group"><label>Email</label><input type="email"></div>
-        <div class="field-group"><label>Phone number</label><input type="tel"></div>
+        <div class="field-group"><label>Email</label><input type="email" id="regEmail" autocomplete="email" required></div>
+        <div class="field-group"><label>Phone number</label><input type="tel" id="regPhone" autocomplete="tel"></div>
         <div class="field-row2">
-          <div class="field-group"><label>Password</label><input type="password"></div>
-          <div class="field-group"><label>Confirm password</label><input type="password"></div>
+          <div class="field-group"><label>Password</label><input type="password" id="regPw" autocomplete="new-password" minlength="8" required></div>
+          <div class="field-group"><label>Confirm password</label><input type="password" id="regPw2" autocomplete="new-password" required></div>
         </div>
-        <button class="btn btn-primary btn-block" type="button" onclick="startOnboarding()" style="margin-top:8px; padding:13px;">Create Account</button>
+        <p class="form-error" id="regError" role="alert"></p>
+        <button class="btn btn-primary btn-block" type="submit" id="regBtn" style="margin-top:8px; padding:13px;">Create Account</button>
       </form>
       <p class="auth-foot">Already have an account? <a onclick="openScreen('login')">Log in</a></p>
     </div>
@@ -961,14 +967,11 @@ input:focus,select:focus,textarea:focus{outline:none; border-color:var(--violet)
       <div class="nav-logo"><span class="dot"></span><span class="shine-text">postly.media</span></div>
       <h2>Welcome back.</h2>
       <p class="sub-center">Log in to your AI Marketing Department.</p>
-      <form onsubmit="event.preventDefault();">
-        <div class="field-group"><label>Email</label><input type="email"></div>
-        <div class="field-group"><label>Password</label><input type="password"></div>
-        <div class="auth-check">
-          <label style="display:flex; align-items:center; gap:8px; margin:0;"><input type="checkbox" style="width:auto;">Remember me</label>
-          <a style="color:var(--violet); font-weight:600;">Forgot password?</a>
-        </div>
-        <button class="btn btn-primary btn-block" type="button" onclick="enterApp(); showToast('Welcome back!');" style="padding:13px;">Log in</button>
+      <form onsubmit="event.preventDefault(); submitLogin();">
+        <div class="field-group"><label>Email</label><input type="email" id="loginEmail" autocomplete="email" required></div>
+        <div class="field-group"><label>Password</label><input type="password" id="loginPw" autocomplete="current-password" required></div>
+        <p class="form-error" id="loginError" role="alert"></p>
+        <button class="btn btn-primary btn-block" type="submit" id="loginBtn" style="padding:13px; margin-top:8px;">Log in</button>
       </form>
       <p class="auth-foot">New to Postly? <a onclick="openScreen('register')">Create account</a></p>
     </div>
@@ -987,14 +990,14 @@ input:focus,select:focus,textarea:focus{outline:none; border-color:var(--violet)
       <p class="hint">This helps your AI team understand who you are.</p>
       <div class="field-group"><label>Business name</label><input type="text" id="onbBizName"></div>
       <div class="field-row2">
-        <div class="field-group"><label>Business type</label><select><option>Local business</option><option>E-commerce</option><option>Service provider</option><option>Other</option></select></div>
-        <div class="field-group"><label>Industry</label><select><option>Food & beverage</option><option>Retail</option><option>Health & fitness</option><option>Professional services</option><option>Other</option></select></div>
+        <div class="field-group"><label>Business type</label><select id="obType"><option>Local business</option><option>E-commerce</option><option>Service provider</option><option>Other</option></select></div>
+        <div class="field-group"><label>Industry</label><select id="obIndustry"><option>Food & beverage</option><option>Retail</option><option>Health & fitness</option><option>Professional services</option><option>Other</option></select></div>
       </div>
       <div class="field-row2">
-        <div class="field-group"><label>Website (optional)</label><input type="text" placeholder="yourbusiness.com"></div>
-        <div class="field-group"><label>Location</label><input type="text" placeholder="City, Country"></div>
+        <div class="field-group"><label>Website (optional)</label><input type="text" id="obWebsite" placeholder="yourbusiness.com"></div>
+        <div class="field-group"><label>Location</label><input type="text" id="obLocation" placeholder="City, Country"></div>
       </div>
-      <div class="field-group"><label>Description</label><textarea rows="2" placeholder="What does your business do?"></textarea></div>
+      <div class="field-group"><label>Description</label><textarea rows="2" id="obDesc" placeholder="What does your business do?"></textarea></div>
       <div class="onb-nav"><span></span><button class="btn btn-primary" onclick="onbNext(1)">Continue</button></div>
     </div>
 
@@ -1018,11 +1021,11 @@ input:focus,select:focus,textarea:focus{outline:none; border-color:var(--violet)
       <h2>Who are your customers?</h2>
       <p class="hint">A rough picture is enough — your AI team will refine it.</p>
       <div class="field-row2">
-        <div class="field-group"><label>Age range</label><select><option>18–24</option><option selected>25–34</option><option>35–44</option><option>45–54</option><option>55+</option></select></div>
-        <div class="field-group"><label>Customer type</label><select><option>Individuals</option><option>Businesses</option><option>Both</option></select></div>
+        <div class="field-group"><label>Age range</label><select id="obAge"><option>18–24</option><option selected>25–34</option><option>35–44</option><option>45–54</option><option>55+</option></select></div>
+        <div class="field-group"><label>Customer type</label><select id="obCustType"><option>Individuals</option><option>Businesses</option><option>Both</option></select></div>
       </div>
-      <div class="field-group"><label>Location</label><input type="text" placeholder="Where are your customers based?"></div>
-      <div class="field-group"><label>Interests</label><input type="text" placeholder="e.g. coffee, wellness, sustainability"></div>
+      <div class="field-group"><label>Location</label><input type="text" id="obCustLoc" placeholder="Where are your customers based?"></div>
+      <div class="field-group"><label>Interests</label><input type="text" id="obInterests" placeholder="e.g. coffee, wellness, sustainability"></div>
       <div class="onb-nav"><button class="btn btn-ghost" onclick="onbBack(3)">Back</button><button class="btn btn-primary" onclick="onbNext(3)">Continue</button></div>
     </div>
 
@@ -1043,14 +1046,14 @@ input:focus,select:focus,textarea:focus{outline:none; border-color:var(--violet)
       <h2>Connect your marketing channels.</h2>
       <p class="hint">Skip any of these for now — you can connect them later.</p>
       <div class="panel" style="margin-bottom:24px;">
-        <div class="channel-row"><div class="channel-name"><span class="ch-icon">IG</span><div>Instagram<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" onclick="connectChannel(this,'Instagram','@riverside.coffee')">Connect</button></div>
-        <div class="channel-row"><div class="channel-name"><span class="ch-icon">FB</span><div>Facebook<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" onclick="connectChannel(this,'Facebook','Riverside Coffee Co.')">Connect</button></div>
-        <div class="channel-row"><div class="channel-name"><span class="ch-icon"><svg class="i" style="width:15px;height:15px;"><use href="#i-target"/></svg></span><div>Meta Ads<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" onclick="connectChannel(this,'Meta Ads','Ad account 4471')">Connect</button></div>
-        <div class="channel-row"><div class="channel-name"><span class="ch-icon">TT</span><div>TikTok<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" onclick="connectChannel(this,'TikTok','@riverside.coffee')">Connect</button></div>
-        <div class="channel-row"><div class="channel-name"><span class="ch-icon"><svg class="i" style="width:15px;height:15px;"><use href="#i-orbit"/></svg></span><div>Google Business Profile<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" onclick="connectChannel(this,'Google Business Profile','Riverside Coffee Co.')">Connect</button></div>
-        <div class="channel-row"><div class="channel-name"><span class="ch-icon" style="font-size:9px;">GPT</span><div>ChatGPT Ads<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" onclick="connectChannel(this,'ChatGPT Ads','Advertiser account 8821')">Connect</button></div>
+        <div class="channel-row"><div class="channel-name"><span class="ch-icon">IG</span><div>Instagram<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" onclick="connectChannel(this,'Instagram')">Connect</button></div>
+        <div class="channel-row"><div class="channel-name"><span class="ch-icon">FB</span><div>Facebook<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" onclick="connectChannel(this,'Facebook')">Connect</button></div>
+        <div class="channel-row"><div class="channel-name"><span class="ch-icon"><svg class="i" style="width:15px;height:15px;"><use href="#i-target"/></svg></span><div>Meta Ads<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" onclick="connectChannel(this,'Meta Ads')">Connect</button></div>
+        <div class="channel-row"><div class="channel-name"><span class="ch-icon">TT</span><div>TikTok<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" onclick="connectChannel(this,'TikTok')">Connect</button></div>
+        <div class="channel-row"><div class="channel-name"><span class="ch-icon"><svg class="i" style="width:15px;height:15px;"><use href="#i-orbit"/></svg></span><div>Google Business Profile<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" onclick="connectChannel(this,'Google Business Profile')">Connect</button></div>
+        <div class="channel-row"><div class="channel-name"><span class="ch-icon" style="font-size:9px;">GPT</span><div>ChatGPT Ads<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" onclick="connectChannel(this,'ChatGPT Ads')">Connect</button></div>
       </div>
-      <div class="onb-nav"><button class="btn btn-ghost" onclick="onbBack(5)">Back</button><button class="btn btn-primary" onclick="onbFinish()">Build My Marketing Plan</button></div>
+      <div class="onb-nav"><button class="btn btn-ghost" onclick="onbBack(5)">Back</button><button class="btn btn-primary" id="onbFinishBtn" onclick="onbFinish()">Build My Marketing Plan</button></div>
     </div>
 
     <div class="onb-step" data-step="6">
@@ -1085,7 +1088,7 @@ input:focus,select:focus,textarea:focus{outline:none; border-color:var(--violet)
       <a class="side-link" data-page="billing" onclick="showPage('billing')"><span class="ico"><svg class="i"><use href="#i-card"/></svg></span>Billing</a>
       <a class="side-link" data-page="settings" onclick="showPage('settings')"><span class="ico"><svg class="i"><use href="#i-gear"/></svg></span>Settings</a>
       <div class="side-bottom">
-        <div class="side-user"><div class="side-avatar"></div><div><div id="sideUserName" style="font-weight:600;">Your Business</div><div style="color:var(--text-faint); font-size:12px;">Growth plan</div></div></div>
+        <div class="side-user"><div class="side-avatar"></div><div><div id="sideUserName" style="font-weight:600;">Your Business</div><div style="color:var(--text-faint); font-size:12px;">Free trial</div></div></div>
         <a class="side-link" onclick="exitApp()"><span class="ico"><svg class="i"><use href="#i-logout"/></svg></span>Log out</a>
       </div>
     </aside>
@@ -1096,52 +1099,29 @@ input:focus,select:focus,textarea:focus{outline:none; border-color:var(--violet)
       <div class="app-page active" id="page-dashboard">
         <div class="page-head"><div><h1 id="dashGreeting">Good morning, there.</h1><p>Your AI Marketing Department is working.</p></div><button class="btn btn-primary" onclick="showPage('assistant')">Ask your Marketing Department</button></div>
         <div class="metric-grid">
-          <div class="metric-card"><div class="label">Marketing Score</div><div class="value">78</div><div class="delta up">↑ 6 this week</div></div>
-          <div class="metric-card"><div class="label">Leads</div><div class="value">142</div><div class="delta up">↑ 18%</div></div>
-          <div class="metric-card"><div class="label">Ad Spend</div><div class="value">$612</div><div class="delta down">of $1,000 budget</div></div>
-          <div class="metric-card"><div class="label">Conversions</div><div class="value">37</div><div class="delta up">↑ 9%</div></div>
+          <div class="metric-card"><div class="label">Live campaigns</div><div class="value" id="mLive">0</div><div class="delta">running now</div></div>
+          <div class="metric-card"><div class="label">Awaiting approval</div><div class="value" id="mPending">0</div><div class="delta">need your sign-off</div></div>
+          <div class="metric-card"><div class="label">Daily ad budget</div><div class="value" id="mSpend">$0</div><div class="delta">across live campaigns</div></div>
+          <div class="metric-card"><div class="label">Channels connected</div><div class="value" id="mChannels">0</div><div class="delta">in Settings</div></div>
         </div>
         <div class="dash-grid">
           <div class="panel">
-            <h3>What Postly did today</h3>
-            <ul class="did-today">
-              <li><span class="ck">✓</span>Created 4 new creatives for the summer promo campaign</li>
-              <li><span class="ck">✓</span>Analyzed 5 competitors and flagged 1 new opportunity</li>
-              <li><span class="ck">✓</span>Optimized budget allocation on the Instagram campaign</li>
-              <li><span class="ck">✓</span>Found a new audience opportunity — women 25–34, nearby</li>
-              <li><span class="ck">✓</span>Drafted next week's content calendar</li>
-              <li><span class="ck">✓</span>Improved 2 pages for AI Search visibility</li>
-            </ul>
+            <h3>Recent activity</h3>
+            <ul class="did-today" id="activityList"></ul>
           </div>
           <div class="panel">
             <h3>Your AI Team</h3>
-            <div class="agent-pill"><span class="dot"></span><span class="name">Strategy Agent</span><span class="status">Idle</span></div>
-            <div class="agent-pill"><span class="dot"></span><span class="name">Creative Agent</span><span class="status">Working</span></div>
-            <div class="agent-pill"><span class="dot"></span><span class="name">Content Agent</span><span class="status">Working</span></div>
-            <div class="agent-pill"><span class="dot" style="background:var(--amber);"></span><span class="name">Ads Agent</span><span class="status">Awaiting approval</span></div>
-            <div class="agent-pill"><span class="dot"></span><span class="name">Growth Agent</span><span class="status">Optimizing</span></div>
-            <div class="agent-pill"><span class="dot"></span><span class="name">AI Search Agent</span><span class="status">Working</span></div>
+            <div class="agent-pill"><span class="dot"></span><span class="name">Strategy Agent</span><span class="status">Ready</span></div>
+            <div class="agent-pill"><span class="dot"></span><span class="name">Creative Agent</span><span class="status">Ready</span></div>
+            <div class="agent-pill"><span class="dot"></span><span class="name">Content Agent</span><span class="status">Ready</span></div>
+            <div class="agent-pill"><span class="dot"></span><span class="name">Ads Agent</span><span class="status">Ready</span></div>
+            <div class="agent-pill"><span class="dot"></span><span class="name">Growth Agent</span><span class="status">Ready</span></div>
+            <div class="agent-pill"><span class="dot"></span><span class="name">AI Search Agent</span><span class="status">Ready</span></div>
           </div>
         </div>
         <div class="panel">
           <h3>Needs your approval</h3>
-          <div class="campaign-card" style="margin:0;">
-            <div class="campaign-top">
-              <div><h4>Summer promo — Instagram + Facebook</h4><p style="font-size:13px; color:var(--text-dim);">Prepared by the Ads Agent, 2 hours ago</p></div>
-              <span class="status-chip pending">Approval required</span>
-            </div>
-            <div class="campaign-meta">
-              <div><div class="k">Budget</div><div class="v">$20/day</div></div>
-              <div><div class="k">Duration</div><div class="v">7 days</div></div>
-              <div><div class="k">Audience</div><div class="v">Local, 25–44</div></div>
-              <div><div class="k">Expected leads</div><div class="v">~35</div></div>
-            </div>
-            <div class="campaign-actions">
-              <button class="btn btn-primary btn-sm" onclick="approveCampaign(this)">Approve & Launch</button>
-              <button class="btn btn-ghost btn-sm">Edit</button>
-              <button class="btn btn-ghost btn-sm">Ask an Expert</button>
-            </div>
-          </div>
+          <div id="approvalList"></div>
         </div>
       </div>
 
@@ -1193,32 +1173,9 @@ input:focus,select:focus,textarea:focus{outline:none; border-color:var(--violet)
             </div>
           </div>
         </div>
-        <div class="tabs">
-          <span class="tab-btn active">Active (2)</span><span class="tab-btn">Draft (1)</span><span class="tab-btn">Completed (5)</span>
-        </div>
-        <div class="campaign-card">
-          <div class="campaign-top"><div><h4>Summer promo — Instagram + Facebook</h4><p style="font-size:13px; color:var(--text-dim);">Prepared by the Ads Agent</p></div><span class="status-chip pending">Approval required</span></div>
-          <div class="campaign-meta">
-            <div><div class="k">Budget</div><div class="v">$20/day</div></div>
-            <div><div class="k">Duration</div><div class="v">7 days</div></div>
-            <div><div class="k">Audience</div><div class="v">Local, 25–44</div></div>
-            <div><div class="k">Expected leads</div><div class="v">~35</div></div>
-          </div>
-          <div class="campaign-actions"><button class="btn btn-primary btn-sm" onclick="approveCampaign(this)">Approve & Launch</button><button class="btn btn-ghost btn-sm">Edit</button><button class="btn btn-ghost btn-sm">Ask an Expert</button></div>
-        </div>
-        <div class="campaign-card">
-          <div class="campaign-top"><div><h4>New customer acquisition — Google</h4><p style="font-size:13px; color:var(--text-dim);">Running for 4 days</p></div><span class="status-chip live">Live</span></div>
-          <div class="campaign-meta">
-            <div><div class="k">Spend</div><div class="v">$84</div></div>
-            <div><div class="k">CPA</div><div class="v">$6.20</div></div>
-            <div><div class="k">ROAS</div><div class="v">3.4x</div></div>
-            <div><div class="k">Leads</div><div class="v">14</div></div>
-          </div>
-        </div>
-        <div class="campaign-card">
-          <div class="campaign-top"><div><h4>Product launch teaser</h4><p style="font-size:13px; color:var(--text-dim);">Prepared, not yet launched</p></div><span class="status-chip draft">Draft</span></div>
-          <div class="campaign-actions"><button class="btn btn-ghost btn-sm">Continue setup</button></div>
-        </div>
+        <div class="sample-note">Approving a campaign records it as live in Postly. Publishing to the ad platforms starts once those channel integrations go live.</div>
+        <div class="tabs" id="campTabs"></div>
+        <div id="campaignList"></div>
       </div>
 
       <!-- Content -->
@@ -1316,17 +1273,25 @@ input:focus,select:focus,textarea:focus{outline:none; border-color:var(--violet)
       <div class="app-page" id="page-settings">
         <div class="page-head"><div><h1>Settings</h1><p>Your profile and business details.</p></div></div>
         <div class="panel">
-          <div class="field-row2"><div class="field-group"><label>Business name</label><input type="text" id="settingsBizName"></div><div class="field-group"><label>Website</label><input type="text" placeholder="yourbusiness.com"></div></div>
-          <button class="btn btn-primary btn-sm">Save changes</button>
+          <div class="field-row2"><div class="field-group"><label>Business name</label><input type="text" id="settingsBizName"></div><div class="field-group"><label>Website</label><input type="text" id="settingsWebsite" placeholder="yourbusiness.com"></div></div>
+          <button class="btn btn-primary btn-sm" onclick="saveSettings(this)">Save changes</button>
         </div>
         <div class="panel">
           <h3>Connected accounts</h3>
-          <div class="channel-row"><div class="channel-name"><span class="ch-icon">IG</span><div>Instagram<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" onclick="connectChannel(this,'Instagram','@riverside.coffee')">Connect</button></div>
-          <div class="channel-row"><div class="channel-name"><span class="ch-icon">FB</span><div>Facebook<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" onclick="connectChannel(this,'Facebook','Riverside Coffee Co.')">Connect</button></div>
-          <div class="channel-row"><div class="channel-name"><span class="ch-icon"><svg class="i" style="width:15px;height:15px;"><use href="#i-target"/></svg></span><div>Meta Ads<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" onclick="connectChannel(this,'Meta Ads','Ad account 4471')">Connect</button></div>
-          <div class="channel-row"><div class="channel-name"><span class="ch-icon">TT</span><div>TikTok<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" onclick="connectChannel(this,'TikTok','@riverside.coffee')">Connect</button></div>
-          <div class="channel-row"><div class="channel-name"><span class="ch-icon"><svg class="i" style="width:15px;height:15px;"><use href="#i-orbit"/></svg></span><div>Google Business Profile<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" onclick="connectChannel(this,'Google Business Profile','Riverside Coffee Co.')">Connect</button></div>
-        <div class="channel-row"><div class="channel-name"><span class="ch-icon" style="font-size:9px;">GPT</span><div>ChatGPT Ads<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" onclick="connectChannel(this,'ChatGPT Ads','Advertiser account 8821')">Connect</button></div>
+          <div class="channel-row"><div class="channel-name"><span class="ch-icon">IG</span><div>Instagram<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" onclick="connectChannel(this,'Instagram')">Connect</button></div>
+          <div class="channel-row"><div class="channel-name"><span class="ch-icon">FB</span><div>Facebook<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" onclick="connectChannel(this,'Facebook')">Connect</button></div>
+          <div class="channel-row"><div class="channel-name"><span class="ch-icon"><svg class="i" style="width:15px;height:15px;"><use href="#i-target"/></svg></span><div>Meta Ads<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" onclick="connectChannel(this,'Meta Ads')">Connect</button></div>
+          <div class="channel-row"><div class="channel-name"><span class="ch-icon">TT</span><div>TikTok<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" onclick="connectChannel(this,'TikTok')">Connect</button></div>
+          <div class="channel-row"><div class="channel-name"><span class="ch-icon"><svg class="i" style="width:15px;height:15px;"><use href="#i-orbit"/></svg></span><div>Google Business Profile<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" onclick="connectChannel(this,'Google Business Profile')">Connect</button></div>
+        <div class="channel-row"><div class="channel-name"><span class="ch-icon" style="font-size:9px;">GPT</span><div>ChatGPT Ads<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" onclick="connectChannel(this,'ChatGPT Ads')">Connect</button></div>
+        </div>
+        <div class="panel" id="waPanel" style="display:none;">
+          <h3>Send a WhatsApp message</h3>
+          <p style="color:var(--text-dim); font-size:13.5px; margin-bottom:16px;">Sent through your WhatsApp Cloud API number. The access token stays on the server.</p>
+          <div class="field-group"><label>To (international format, e.g. 96170123456)</label><input type="text" id="waTo" inputmode="tel"></div>
+          <div class="field-group"><label>Message</label><textarea rows="3" id="waBody" maxlength="1000"></textarea></div>
+          <p class="form-error" id="waError" role="alert"></p>
+          <button class="btn btn-primary btn-sm" id="waBtn" onclick="sendWhatsApp()">Send</button>
         </div>
       </div>
 
@@ -1379,11 +1344,31 @@ function toggleTheme(){
 }
 
 let onbStep = 1;
-let bizName = "Your Business";
+let me = null; // { user, business } from /api/me
+const $ = (id) => document.getElementById(id);
+const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+async function api(method, path, body){
+  const res = await fetch('/api' + path, {
+    method, credentials: 'same-origin',
+    headers: {'Content-Type': 'application/json'},
+    body: body === undefined ? (method === 'GET' ? undefined : '{}') : JSON.stringify(body)
+  });
+  let data = null;
+  try { data = await res.json(); } catch (e) {}
+  if(!res.ok){
+    const err = new Error((data && data.error) || 'Something went wrong. Please try again.');
+    err.status = res.status;
+    throw err;
+  }
+  return data;
+}
+function setError(id, msg){ const e = $(id); if(e) e.textContent = msg || ''; }
+function busy(btn, on){ if(btn) btn.disabled = on; }
 
 function openScreen(name){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
-  document.getElementById('screen-'+name).classList.add('active');
+  $('screen-'+name).classList.add('active');
   document.body.style.overflow='hidden';
   window.scrollTo(0,0);
 }
@@ -1392,16 +1377,48 @@ function closeScreen(){
   document.body.style.overflow='auto';
 }
 
+/* ---------- auth ---------- */
+async function submitRegister(){
+  setError('regError','');
+  const pw = $('regPw').value;
+  if(pw !== $('regPw2').value){ setError('regError','Passwords do not match.'); return; }
+  busy($('regBtn'), true);
+  try{
+    me = await api('POST','/auth/register',{
+      firstName: $('regFirst').value, lastName: $('regLast').value,
+      businessName: $('regBizName').value, email: $('regEmail').value,
+      phone: $('regPhone').value, password: pw
+    });
+    $('regPw').value = ''; $('regPw2').value = '';
+    startOnboarding();
+  }catch(e){ setError('regError', e.message); }
+  busy($('regBtn'), false);
+}
+async function submitLogin(){
+  setError('loginError','');
+  busy($('loginBtn'), true);
+  try{
+    me = await api('POST','/auth/login',{ email: $('loginEmail').value, password: $('loginPw').value });
+    $('loginPw').value = '';
+    if(me.business && !me.business.onboarded) startOnboarding(); else { await enterApp(); showToast('Welcome back!'); }
+  }catch(e){ setError('loginError', e.message); }
+  busy($('loginBtn'), false);
+}
+async function exitApp(){
+  try{ await api('POST','/auth/logout'); }catch(e){}
+  me = null;
+  closeScreen();
+}
+
+/* ---------- onboarding ---------- */
 function startOnboarding(){
-  const val = document.getElementById('regBizName').value;
-  if(val) { bizName = val; document.getElementById('onbBizName').value = val; }
+  $('onbBizName').value = (me && me.business && me.business.name) || '';
   onbStep = 1;
   document.querySelectorAll('.onb-step').forEach(s=>s.classList.remove('active'));
   document.querySelector('.onb-step[data-step="1"]').classList.add('active');
   updateOnbProgress();
   openScreen('onboarding');
 }
-
 function updateOnbProgress(){
   const dots = document.querySelectorAll('#onbProgress > div');
   dots.forEach((d,i)=>{
@@ -1410,7 +1427,6 @@ function updateOnbProgress(){
     else if(i === onbStep-1) d.classList.add('current');
   });
 }
-
 function onbNext(step){
   onbStep = step+1;
   document.querySelectorAll('.onb-step').forEach(s=>s.classList.remove('active'));
@@ -1423,127 +1439,265 @@ function onbBack(step){
   document.querySelector('.onb-step[data-step="'+onbStep+'"]').classList.add('active');
   updateOnbProgress();
 }
-function onbFinish(){
-  onbStep = 6;
-  document.querySelectorAll('.onb-step').forEach(s=>s.classList.remove('active'));
-  document.querySelector('.onb-step[data-step="6"]').classList.add('active');
-  document.getElementById('onbProgress').querySelectorAll('div').forEach(d=>{d.classList.add('done'); d.classList.remove('current');});
+function selectedText(groupId){
+  const el = $(groupId).querySelector('.choice-card.selected');
+  return el ? el.textContent.trim() : '';
 }
-
+async function onbFinish(){
+  const btn = $('onbFinishBtn');
+  busy(btn, true);
+  try{
+    me = await api('PUT','/business',{
+      name: $('onbBizName').value, type: $('obType').value, industry: $('obIndustry').value,
+      website: $('obWebsite').value, location: $('obLocation').value, description: $('obDesc').value,
+      goal: selectedText('goalGrid'), budget: selectedText('budgetGrid'),
+      customer_age: $('obAge').value, customer_type: $('obCustType').value,
+      customer_location: $('obCustLoc').value, interests: $('obInterests').value,
+      onboarded: true
+    });
+    onbStep = 6;
+    document.querySelectorAll('.onb-step').forEach(s=>s.classList.remove('active'));
+    document.querySelector('.onb-step[data-step="6"]').classList.add('active');
+    $('onbProgress').querySelectorAll('div').forEach(d=>{d.classList.add('done'); d.classList.remove('current');});
+  }catch(e){ showToast(e.message); }
+  busy(btn, false);
+}
 function selectChoice(el, groupId){
-  document.getElementById(groupId).querySelectorAll('.choice-card').forEach(c=>c.classList.remove('selected'));
+  $(groupId).querySelectorAll('.choice-card').forEach(c=>c.classList.remove('selected'));
   el.classList.add('selected');
 }
 
-function enterApp(){
-  const nameInput = document.getElementById('onbBizName');
-  if(nameInput && nameInput.value) bizName = nameInput.value;
-  document.getElementById('sideUserName').textContent = bizName;
-  document.getElementById('dashGreeting').textContent = 'Good morning, ' + bizName.split(' ')[0] + '.';
-  document.getElementById('settingsBizName').value = bizName;
+/* ---------- app shell ---------- */
+async function enterApp(){
+  const b = (me && me.business) || {};
+  const first = (me && me.user.firstName) || (b.name || '').split(' ')[0] || 'there';
+  $('sideUserName').textContent = b.name || 'Your Business';
+  $('dashGreeting').textContent = 'Good morning, ' + first + '.';
+  $('settingsBizName').value = b.name || '';
+  $('settingsWebsite').value = b.website || '';
+  $('waPanel').style.display = (me && me.user.canSendWhatsApp) ? 'block' : 'none';
   openScreen('app');
   showPage('dashboard');
+  loadChannels();
+  loadChat();
 }
-function exitApp(){
-  closeScreen();
-}
-
 function showPage(name){
   document.querySelectorAll('.app-page').forEach(p=>p.classList.remove('active'));
-  document.getElementById('page-'+name).classList.add('active');
+  $('page-'+name).classList.add('active');
   document.querySelectorAll('.side-link').forEach(l=>l.classList.remove('active'));
   const link = document.querySelector('.side-link[data-page="'+name+'"]');
   if(link) link.classList.add('active');
+  if(name === 'dashboard' || name === 'campaigns') refreshData();
 }
-
-function approveCampaign(btn){
-  const card = btn.closest('.campaign-card');
-  const chip = card.querySelector('.status-chip');
-  chip.textContent = 'Live';
-  chip.className = 'status-chip live';
-  card.querySelector('.campaign-actions').innerHTML = '<span style="color:var(--green); font-size:13.5px;">✓ Launched — Growth Agent is now optimizing.</span>';
-  showToast('Campaign approved and launched.');
-}
-
 function showToast(msg){
-  const t = document.getElementById('toast');
+  const t = $('toast');
   t.textContent = msg;
   t.classList.add('show');
   clearTimeout(window._toastTimer);
-  window._toastTimer = setTimeout(()=>t.classList.remove('show'), 3000);
+  window._toastTimer = setTimeout(()=>t.classList.remove('show'), 3500);
 }
 
-function connectChannel(btn, platform, accountLabel){
-  const row = btn.closest('.channel-row');
-  const sub = row.querySelector('.ch-sub');
-  const isConnected = btn.classList.contains('btn-connected');
-  if(isConnected){
-    btn.textContent = 'Connect';
-    btn.classList.remove('btn-connected');
-    if(sub){ sub.style.display = 'none'; sub.textContent = ''; }
-    return;
+/* ---------- campaigns + dashboard ---------- */
+let campaigns = [];
+let campFilter = 'all';
+
+async function refreshData(){
+  try{
+    const [c, d] = await Promise.all([api('GET','/campaigns'), api('GET','/dashboard')]);
+    campaigns = c.campaigns;
+    renderDashboard(d);
+    renderCampaigns();
+  }catch(e){ if(e.status === 401) { me = null; closeScreen(); } else showToast(e.message); }
+}
+function renderDashboard(d){
+  $('mLive').textContent = d.live;
+  $('mPending').textContent = d.pending;
+  $('mSpend').textContent = '$' + d.daily_spend + '/day';
+  $('mChannels').textContent = d.channels;
+  const list = $('activityList');
+  list.innerHTML = '';
+  if(!d.activity.length){
+    const li = document.createElement('li'); li.innerHTML = '<span class="empty-note">Nothing yet — ask your Marketing Department to draft a campaign.</span>';
+    list.appendChild(li);
   }
-  btn.textContent = 'Connected';
-  btn.classList.add('btn-connected');
-  if(sub){ sub.textContent = accountLabel; sub.style.display = 'block'; }
-  showToast(platform + ' connected — ' + accountLabel);
+  d.activity.forEach(a=>{
+    const li = document.createElement('li');
+    li.innerHTML = '<span class="ck">✓</span><span></span>';
+    li.lastChild.textContent = a.text;
+    list.appendChild(li);
+  });
+  const box = $('approvalList');
+  box.innerHTML = '';
+  const pending = campaigns.filter(c=>c.status === 'pending');
+  if(!pending.length){ box.innerHTML = '<p class="empty-note">Nothing waiting for approval.</p>'; }
+  pending.forEach(c=>box.appendChild(campaignCard(c)));
+}
+function campaignCard(c){
+  const card = document.createElement('div');
+  card.className = 'campaign-card';
+  const live = c.status === 'live';
+  const chip = live ? '<span class="status-chip live">Live</span>'
+                    : '<span class="status-chip pending">Approval required</span>';
+  card.innerHTML =
+    '<div class="campaign-top"><div><h4>' + esc(c.title) + '</h4><p style="font-size:13px; color:var(--text-dim);">' +
+    esc(c.platform) + ' · prepared by the Ads Agent</p></div>' + chip + '</div>' +
+    '<div class="campaign-meta">' +
+      '<div><div class="k">Budget</div><div class="v">$' + esc(c.budget_per_day) + '/day</div></div>' +
+      '<div><div class="k">Duration</div><div class="v">' + esc(c.duration_days) + ' days</div></div>' +
+      '<div><div class="k">Audience</div><div class="v">' + esc(c.audience) + '</div></div>' +
+      '<div><div class="k">Expected leads</div><div class="v">~' + esc(c.expected_leads) + '</div></div>' +
+    '</div>' +
+    (live ? '<div class="campaign-actions"><span style="color:var(--green); font-size:13.5px;">✓ Approved — Growth Agent is now optimizing.</span></div>'
+          : '<div class="campaign-actions"><button class="btn btn-primary btn-sm">Approve & Launch</button></div>');
+  const btn = card.querySelector('button');
+  if(btn) btn.addEventListener('click', ()=>approveCampaign(c.id, btn));
+  return card;
+}
+function renderCampaigns(){
+  const counts = {
+    all: campaigns.length,
+    pending: campaigns.filter(c=>c.status==='pending').length,
+    live: campaigns.filter(c=>c.status==='live').length
+  };
+  const tabs = $('campTabs');
+  tabs.innerHTML = '';
+  [['all','All'],['pending','Awaiting approval'],['live','Live']].forEach(([key,label])=>{
+    const t = document.createElement('span');
+    t.className = 'tab-btn' + (campFilter===key ? ' active' : '');
+    t.textContent = label + ' (' + counts[key] + ')';
+    t.addEventListener('click', ()=>{ campFilter = key; renderCampaigns(); });
+    tabs.appendChild(t);
+  });
+  const box = $('campaignList');
+  box.innerHTML = '';
+  const shown = campaigns.filter(c=>campFilter==='all' || c.status===campFilter);
+  if(!shown.length){ box.innerHTML = '<p class="empty-note">No campaigns here yet. Use “+ New Campaign” or ask the assistant.</p>'; }
+  shown.forEach(c=>box.appendChild(campaignCard(c)));
+}
+async function approveCampaign(id, btn){
+  busy(btn, true);
+  try{
+    await api('POST','/campaigns/'+id+'/approve');
+    showToast('Campaign approved.');
+    await refreshData();
+  }catch(e){ showToast(e.message); busy(btn, false); }
 }
 
-const aiResponses = {
-  "I need more customers.": "I've looked at your business and your goal — I'm putting together a campaign aimed at local customers now. I'll have it ready for your review in a moment.",
-  "Create an Instagram campaign for me.": "Building an Instagram campaign now: local audience, carousel creative, $20/day. I'll send it to Campaigns for your approval.",
-  "Create a Facebook campaign for me.": "Building a Facebook campaign now: local audience, single-image creative, $20/day. I'll send it to Campaigns for your approval.",
-  "Create a Google campaign for me.": "Building a Google Search campaign now: intent-based keywords around your business, $18/day. I'll send it to Campaigns for your approval.",
-  "Create a TikTok campaign for me.": "Building a TikTok campaign now: short-form video creative, younger local audience, $15/day. I'll send it to Campaigns for your approval.",
-  "Create a ChatGPT campaign for me.": "Building a ChatGPT Ads campaign now: sponsored card matched to relevant conversations, $30/day minimum for this channel. I'll send it to Campaigns for your approval.",
-  "Why are my ads performing badly?": "Your Google campaign's CPA rose 18% this week — mostly from one underperforming ad set. I'm pausing it and reallocating that budget to your best-performing creative.",
-  "What are my competitors doing?": "Riverstone Cafe just launched a new offer and Urban Fit Studio added 3 new ads this week. Want me to prepare a counter campaign?",
-  "Create a campaign for me.": "On it — tell me the goal and I'll build the full plan, or say 'more customers' and I'll use your current goal.",
-  "Create a counter campaign against my competitors.": "I've drafted a counter campaign responding to Riverstone Cafe's new offer. You'll find it waiting for approval in Campaigns."
-};
+/* ---------- channels ---------- */
+function platformOfRow(row){
+  const n = row.querySelector('.channel-name > div');
+  return n ? n.firstChild.textContent.trim() : '';
+}
+function applyChannel(platform, label){
+  document.querySelectorAll('.channel-row').forEach(row=>{
+    if(platformOfRow(row) !== platform) return;
+    const btn = row.querySelector('button'); const sub = row.querySelector('.ch-sub');
+    if(label === null){
+      btn.textContent = 'Connect'; btn.classList.remove('btn-connected');
+      if(sub){ sub.style.display = 'none'; sub.textContent = ''; }
+    }else{
+      btn.textContent = 'Connected'; btn.classList.add('btn-connected');
+      if(sub){ sub.textContent = label || 'Marked as connected'; sub.style.display = 'block'; }
+    }
+  });
+}
+async function loadChannels(){
+  try{
+    const r = await api('GET','/channels');
+    document.querySelectorAll('.channel-row').forEach(row=>applyChannel(platformOfRow(row), null));
+    r.channels.forEach(c=>applyChannel(c.platform, c.account_label));
+  }catch(e){}
+}
+async function connectChannel(btn, platform){
+  try{
+    if(btn.classList.contains('btn-connected')){
+      await api('PUT','/channels/'+encodeURIComponent(platform),{connected:false});
+      applyChannel(platform, null);
+      return;
+    }
+    const label = window.prompt('Account name or handle for ' + platform + ':');
+    if(label === null) return;
+    await api('PUT','/channels/'+encodeURIComponent(platform),{accountLabel: label});
+    applyChannel(platform, label.trim());
+    showToast(platform + ' saved. Live syncing starts when this integration goes live.');
+  }catch(e){ showToast(e.message); }
+}
 
+/* ---------- settings ---------- */
+async function saveSettings(btn){
+  busy(btn, true);
+  try{
+    me = await api('PUT','/business',{ name: $('settingsBizName').value, website: $('settingsWebsite').value });
+    $('sideUserName').textContent = me.business.name || 'Your Business';
+    showToast('Settings saved.');
+  }catch(e){ showToast(e.message); }
+  busy(btn, false);
+}
+async function sendWhatsApp(){
+  setError('waError','');
+  busy($('waBtn'), true);
+  try{
+    await api('POST','/whatsapp/send',{ to: $('waTo').value, body: $('waBody').value });
+    $('waBody').value = '';
+    showToast('WhatsApp message sent.');
+  }catch(e){ setError('waError', e.message); }
+  busy($('waBtn'), false);
+}
+
+/* ---------- assistant ---------- */
+function addBubble(role, text){
+  const log = $('chatLog');
+  const m = document.createElement('div');
+  m.className = 'msg ' + (role === 'user' ? 'user' : 'ai');
+  if(role !== 'user'){ const w = document.createElement('div'); w.className = 'who'; w.textContent = 'Postly'; m.appendChild(w); }
+  m.appendChild(document.createTextNode(text));
+  log.appendChild(m);
+  log.scrollTop = log.scrollHeight;
+}
+async function loadChat(){
+  try{
+    const r = await api('GET','/chat');
+    const log = $('chatLog');
+    log.innerHTML = '';
+    addBubble('assistant', "Hi! I'm your AI Marketing Department. Tell me what you're trying to achieve and I'll get to work.");
+    r.messages.forEach(m=>addBubble(m.role, m.content));
+  }catch(e){}
+}
 function sendSuggest(text){
   showPage('assistant');
-  document.getElementById('chatInput').value = text;
+  $('chatInput').value = text;
   sendChat();
+}
+async function sendChat(){
+  const input = $('chatInput');
+  const text = input.value.trim();
+  if(!text || input.disabled) return;
+  addBubble('user', text);
+  input.value = '';
+  input.disabled = true;
+  try{
+    const r = await api('POST','/chat',{ message: text });
+    addBubble('assistant', r.reply);
+    if(r.campaign){ showToast('Campaign drafted — awaiting your approval.'); refreshData(); }
+  }catch(e){ addBubble('assistant', e.message); }
+  input.disabled = false;
+  input.focus();
 }
 
 function togglePlatformMenu(e){
   e.stopPropagation();
-  document.getElementById('platformMenu').classList.toggle('open');
+  $('platformMenu').classList.toggle('open');
 }
 function pickCampaignPlatform(platform){
-  document.getElementById('platformMenu').classList.remove('open');
+  $('platformMenu').classList.remove('open');
   sendSuggest('Create a ' + platform + ' campaign for me.');
 }
 document.addEventListener('click', function(e){
-  const menu = document.getElementById('platformMenu');
+  const menu = $('platformMenu');
   if(menu && !e.target.closest('.platform-picker')){
     menu.classList.remove('open');
   }
 });
-
-function sendChat(){
-  const input = document.getElementById('chatInput');
-  const text = input.value.trim();
-  if(!text) return;
-  const log = document.getElementById('chatLog');
-  const userMsg = document.createElement('div');
-  userMsg.className = 'msg user';
-  userMsg.textContent = text;
-  log.appendChild(userMsg);
-  input.value = '';
-  log.scrollTop = log.scrollHeight;
-
-  setTimeout(()=>{
-    const reply = aiResponses[text] || "Got it — I'm on it. I'll prepare the work and bring it to you for approval if it needs your sign-off.";
-    const aiMsg = document.createElement('div');
-    aiMsg.className = 'msg ai';
-    aiMsg.innerHTML = '<div class="who">Postly</div>' + reply;
-    log.appendChild(aiMsg);
-    log.scrollTop = log.scrollHeight;
-  }, 550);
-}
 
 document.querySelectorAll('.goal-chip').forEach(chip=>{
   chip.addEventListener('click', ()=>{
@@ -1561,6 +1715,34 @@ document.querySelectorAll('.goal-chip').forEach(chip=>{
       scene.style.transform = 'translateY(' + (y * -0.06) + 'px)';
     }
   }, {passive:true});
+})();
+
+/* ---------- sample-data notices ---------- */
+(function(){
+  const notes = {
+    content: 'Sample content — the Content Agent will fill this in once your channels are connected.',
+    ads: 'Sample numbers — real ad metrics appear once ad accounts are connected.',
+    competitors: 'Sample competitors — real tracking starts once this feature goes live.',
+    aisearch: 'Sample score — real AI Search visibility checks are coming soon.',
+    analytics: 'Sample numbers — real analytics appear once channels are connected.',
+    billing: 'Billing is not active yet. You are on the free trial.'
+  };
+  Object.keys(notes).forEach(k=>{
+    const page = $('page-'+k);
+    const head = page && page.querySelector('.page-head');
+    if(!head) return;
+    const n = document.createElement('div');
+    n.className = 'sample-note';
+    n.textContent = notes[k];
+    head.insertAdjacentElement('afterend', n);
+  });
+})();
+
+/* ---------- boot: restore the session if there is one ---------- */
+(async function boot(){
+  try{ me = await api('GET','/me'); }catch(e){ me = null; }
+  if(!me) return;
+  if(me.business && !me.business.onboarded) startOnboarding(); else enterApp();
 })();
 </script>
 </body>

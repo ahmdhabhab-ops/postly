@@ -9,7 +9,30 @@ services:
 
   api:
     build: ./api
-    env_file: .env          # holds WHATSAPP_ACCESS_TOKEN etc. Never baked into the image, never sent to the browser.
+    env_file: .env          # secrets (WhatsApp token, API keys). Never baked into the image, never sent to the browser.
+    environment:
+      DATABASE_URL: postgres://postly:${DB_PASSWORD:?set DB_PASSWORD}@db:5432/postly
+    depends_on:
+      db:
+        condition: service_healthy
     expose:
       - "4000"              # internal only: no host port, only nginx can reach it
     restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: postly
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD}
+      POSTGRES_DB: postly
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postly -d postly"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped   # no ports published: only the api container can reach it
+
+volumes:
+  pgdata:
