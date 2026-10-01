@@ -155,3 +155,18 @@ test('/api/me tells the client which partner to link to', async () => {
   const me = await c.get('/api/me');
   assert.deepEqual(me.json.help, { name: 'Hostbotics', url: 'https://hostbotics.net/' });
 });
+
+test('change password: needs the current one, signs out other devices, old password stops working', async () => {
+  const a = await signup('pw@z.com');
+  const b = client();
+  await b.post('/api/auth/login', { email: 'pw@z.com', password: 'correct horse 1' });      // second device
+  assert.equal((await b.get('/api/me')).status, 200);
+  assert.equal((await a.post('/api/auth/password', { current: 'wrong wrong 1', next: 'brand new pass 2' })).status, 401);
+  assert.equal((await a.post('/api/auth/password', { current: 'correct horse 1', next: 'short' })).status, 400);
+  assert.equal((await a.post('/api/auth/password', { current: 'correct horse 1', next: 'brand new pass 2' })).status, 200);
+  assert.equal((await a.get('/api/me')).status, 200);        // this device stays signed in
+  assert.equal((await b.get('/api/me')).status, 401);        // the other one is signed out
+  assert.equal((await client().post('/api/auth/login', { email: 'pw@z.com', password: 'correct horse 1' })).status, 401);
+  assert.equal((await client().post('/api/auth/login', { email: 'pw@z.com', password: 'brand new pass 2' })).status, 200);
+  assert.equal((await client().post('/api/auth/password', { current: 'x', next: 'y' })).status, 401);
+});

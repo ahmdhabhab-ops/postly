@@ -1354,6 +1354,17 @@ input:focus,select:focus,textarea:focus{outline:none; border-color:var(--violet)
           <div class="channel-row"><div class="channel-name"><span class="ch-icon"><svg class="i" style="width:15px;height:15px;"><use href="#i-orbit"/></svg></span><div>Google Business Profile<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" disabled title="Coming soon" onclick="connectChannel(this,\'Google Business Profile\')">Coming soon</button></div>
         <div class="channel-row"><div class="channel-name"><span class="ch-icon" style="font-size:9px;">GPT</span><div>ChatGPT Ads<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" disabled title="Coming soon" onclick="connectChannel(this,\'ChatGPT Ads\')">Coming soon</button></div>
         </div>
+        <div class="panel" id="accountPanel">
+          <h3>Account</h3>
+          <p style="color:var(--text-dim); font-size:14px; margin-bottom:16px;">Signed in as <strong id="accountEmail"></strong></p>
+          <div class="field-row2">
+            <div class="field-group"><label>Current password</label><input type="password" id="pwCurrent" autocomplete="current-password"></div>
+            <div class="field-group"><label>New password (8+ characters)</label><input type="password" id="pwNew" autocomplete="new-password"></div>
+          </div>
+          <p class="form-error" id="pwError" role="alert"></p>
+          <button class="btn btn-ghost btn-sm" id="pwBtn" onclick="changePassword()">Change password</button>
+          <p style="color:var(--text-faint); font-size:12.5px; margin-top:10px;">Forgot your password? Ask the person who runs this Postly server to reset it.</p>
+        </div>
         <div class="panel" id="waPanel" style="display:none;">
           <h3>Send a WhatsApp message</h3>
           <p style="color:var(--text-dim); font-size:13.5px; margin-bottom:16px;">Sent through your WhatsApp Cloud API number. The access token stays on the server.</p>
@@ -1545,6 +1556,7 @@ async function enterApp(){
   $('dashGreeting').textContent = 'Good morning, ' + first + '.';
   $('settingsBizName').value = b.name || '';
   $('settingsWebsite').value = b.website || '';
+  $('accountEmail').textContent = (me && me.user.email) || '';
   $('waPanel').style.display = (me && me.user.canSendWhatsApp) ? 'block' : 'none';
   openScreen('app');
   showPage('dashboard');
@@ -1875,6 +1887,16 @@ async function saveSettings(btn){
     showToast('Settings saved.');
   }catch(e){ showToast(e.message); }
   busy(btn, false);
+}
+async function changePassword(){
+  setError('pwError','');
+  busy($('pwBtn'), true);
+  try{
+    await api('POST','/auth/password',{ current: $('pwCurrent').value, next: $('pwNew').value });
+    $('pwCurrent').value = ''; $('pwNew').value = '';
+    showToast('Password changed. Other devices were signed out.');
+  }catch(e){ setError('pwError', e.message); }
+  busy($('pwBtn'), false);
 }
 async function sendWhatsApp(){
   setError('waError','');

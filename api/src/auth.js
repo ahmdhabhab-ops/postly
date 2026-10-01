@@ -50,6 +50,11 @@ export function clearSessionCookie(req, res) {
   res.append('Set-Cookie', parts.join('; '));
 }
 
+export const currentTokenHash = (req) => {
+  const t = parseCookies(req.headers.cookie)[COOKIE];
+  return t ? sha256(t) : null;
+};
+
 export async function destroySession(pool, req) {
   const token = parseCookies(req.headers.cookie)[COOKIE];
   if (token) await pool.query('delete from sessions where token_hash = $1', [sha256(token)]);

@@ -40,5 +40,14 @@ Compose path `./docker-compose.yml`; put the variables from `.env.example` in th
   normal sign-ups cannot send messages from your number. Webhook: verify token + `X-Hub-Signature-256` check.
   Set Meta callback to `https://YOUR_DOMAIN/api/whatsapp/webhook` (needs a real domain with HTTPS).
 
+## Lost password / who signed up (server operator)
+Run inside the `api` container (Dokploy: Containers > api > Terminal):
+```
+node src/cli/list-users.js                       # emails and sign-up dates (never password hashes)
+node src/cli/reset-password.js user@example.com   # prints a new random password and signs the user out everywhere
+node src/cli/reset-password.js user@example.com 'chosen password'
+```
+Passwords are stored as scrypt hashes and cannot be read back by anyone. Users can change their own password in Settings > Account.
+
 ## Tests
 `cd api && TEST_DATABASE_URL=postgres://... npm test` (needs a Postgres).

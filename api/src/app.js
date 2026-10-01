@@ -7,7 +7,7 @@ import {
 } from './whatsapp.js';
 import {
   hashPassword, verifyPassword, createSession, setSessionCookie, clearSessionCookie,
-  destroySession, sessionLoader, requireUser, csrfGuard,
+  destroySession, sessionLoader, requireUser, csrfGuard, currentTokenHash,
 } from './auth.js';
 import { assistantReply, detectCampaignRequest, buildAssistantContext } from './assistant.js';
 import { fetchPublicPage, parsePublicUrl, FetchBlockedError } from './safefetch.js';
@@ -119,6 +119,19 @@ export function createApp(cfg, { pool, wa = createWhatsAppClient(cfg.whatsapp), 
     if (!rows[0] || !ok) return res.status(401).json({ error: 'Wrong email or password' });
     setSessionCookie(req, res, await createSession(pool, rows[0].id, cfg.sessionDays), cfg.sessionDays);
     res.json(await meResponse(rows[0].id));
+  }));
+
+  api.post('/auth/password', requireUser, authLimiter, wrap(async (req, res) => {
+    const current = typeof req.body?.current === 'string' ? req.body.current : '';
+    const next = typeof req.body?.next === 'string' ? req.body.next : '';
+    if (next.length < 8 || next.length > 200) throw new ValidationError('New password must be 8-200 characters');
+    const row = (await pool.query('select password_hash from users where id=$1', [req.user.id])).rows[0];
+    if (!(await verifyPassword(current, row.password_hash))) return res.status(401).json({ error: 'Current password is wrong' });
+    await pool.query('update users set password_hash=$2 where id=$1', [req.user.id, await hashPassword(next)]);
+    // sign out every other device, keep this one
+    await pool.query('delete from sessions where user_id=$1 and token_hash <> $2', [req.user.id, currentTokenHash(req) ?? '']);
+    await log(req.user.id, 'You changed your password');
+    res.json({ ok: true });
   }));
 
   api.post('/auth/logout', wrap(async (req, res) => {
