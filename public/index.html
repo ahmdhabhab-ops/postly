@@ -1594,9 +1594,11 @@ function campaignCard(c){
       '<div><div class="k">Expected leads</div><div class="v">~' + esc(c.expected_leads) + '</div></div>' +
     '</div>' +
     (live ? '<div class="campaign-actions"><span style="color:var(--green); font-size:13.5px;">✓ Approved — Growth Agent is now optimizing.</span></div>'
-          : '<div class="campaign-actions"><button class="btn btn-primary btn-sm">Approve & Launch</button></div>');
-  const btn = card.querySelector('button');
+          : '<div class="campaign-actions"><button class="btn btn-primary btn-sm" data-act="approve">Approve & Launch</button><button class="btn btn-ghost btn-sm" data-act="discard">Discard</button></div>');
+  const btn = card.querySelector('[data-act="approve"]');
   if(btn) btn.addEventListener('click', ()=>approveCampaign(c.id, btn));
+  const dis = card.querySelector('[data-act="discard"]');
+  if(dis) dis.addEventListener('click', ()=>discardCampaign(c.id, dis));
   return card;
 }
 function renderCampaigns(){
@@ -1619,6 +1621,12 @@ function renderCampaigns(){
   const shown = campaigns.filter(c=>campFilter==='all' || c.status===campFilter);
   if(!shown.length){ box.innerHTML = '<p class="empty-note">No campaigns here yet. Use “+ New Campaign” or ask the assistant.</p>'; }
   shown.forEach(c=>box.appendChild(campaignCard(c)));
+}
+async function discardCampaign(id, btn){
+  if(!window.confirm('Discard this draft?')) return;
+  busy(btn, true);
+  try{ await api('DELETE','/campaigns/'+id); showToast('Draft discarded.'); await refreshData(); }
+  catch(e){ showToast(e.message); busy(btn, false); }
 }
 async function approveCampaign(id, btn){
   busy(btn, true);

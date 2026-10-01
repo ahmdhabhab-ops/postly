@@ -26,7 +26,7 @@ function client() {
     const text = await res.text(); let json; try { json = JSON.parse(text); } catch {}
     return { status: res.status, json, text };
   };
-  return { get: (p) => call('GET', p), post: (p, b = {}) => call('POST', p, b), put: (p, b) => call('PUT', p, b) };
+  return { get: (p) => call('GET', p), post: (p, b = {}) => call('POST', p, b), put: (p, b) => call('PUT', p, b), del: (p) => call('DELETE', p, {}) };
 }
 const signup = async (email) => { const c = client(); await c.post('/api/auth/register', { email, password: 'correct horse 1', businessName: 'Bean Co' }); return c; };
 const text = (t) => ({ stop_reason: 'end_turn', content: [{ type: 'text', text: t }] });
@@ -233,4 +233,25 @@ test('effort is only sent to models that support it', async () => {
   assert.equal(seen[0].output_config, undefined);
   assert.deepEqual(seen[1].output_config, { effort: 'low' });
   assert.ok(seen[1].max_tokens >= 1500);
+});
+
+test('asking twice for the same platform reuses the pending draft; drafts can be discarded, live ones cannot', async () => {
+  const c = await signup('dup@z.com');
+  script = [text('Drafted.'), text('Already there.')];
+  const a = await c.post('/api/chat', { message: 'Create an Instagram campaign for me.' });
+  const b = await c.post('/api/chat', { message: 'Create an Instagram campaign to compete with X.' });
+  assert.equal(b.json.campaign.id, a.json.campaign.id);
+  assert.equal((await c.get('/api/campaigns')).json.campaigns.length, 1);
+  assert.match(calls.at(-1).system, /already exists and awaits approval/);
+
+  await c.post('/api/chat', { message: 'Create a Facebook campaign for me.' });
+  assert.equal((await c.get('/api/campaigns')).json.campaigns.length, 2);
+
+  assert.equal((await c.del(`/api/campaigns/${a.json.campaign.id}`)).status, 200);
+  assert.equal((await c.get('/api/campaigns')).json.campaigns.length, 1);
+  const other = await signup('dup2@z.com');
+  const fb = (await c.get('/api/campaigns')).json.campaigns[0];
+  assert.equal((await other.del(`/api/campaigns/${fb.id}`)).status, 404);       // not yours
+  await c.post(`/api/campaigns/${fb.id}/approve`);
+  assert.equal((await c.del(`/api/campaigns/${fb.id}`)).status, 404);           // live: cannot discard
 });

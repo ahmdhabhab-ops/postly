@@ -161,6 +161,13 @@ export function createApp(cfg, { pool, wa = createWhatsAppClient(cfg.whatsapp), 
     res.json({ campaigns: rows });
   }));
 
+  api.delete('/campaigns/:id', requireUser, writeLimiter, wrap(async (req, res) => {
+    if (!/^[0-9a-f-]{36}$/.test(req.params.id)) return res.status(404).json({ error: 'Not found' });
+    const r = await pool.query("delete from campaigns where id=$1 and user_id=$2 and status in ('pending','draft')", [req.params.id, req.user.id]);
+    if (!r.rowCount) return res.status(404).json({ error: 'Only drafts awaiting approval can be discarded' });
+    await log(req.user.id, 'You discarded a campaign draft');
+    res.json({ ok: true });
+  }));
   api.post('/campaigns/:id/approve', requireUser, writeLimiter, wrap(async (req, res) => {
     if (!/^[0-9a-f-]{36}$/.test(req.params.id)) return res.status(404).json({ error: 'Not found' });
     const { rows } = await pool.query(
@@ -212,7 +219,14 @@ export function createApp(cfg, { pool, wa = createWhatsAppClient(cfg.whatsapp), 
     )).rows;
     const draft = detectCampaignRequest(text, business);
     let campaign = null;
+    let reused = false;
     if (draft) {
+      campaign = (await pool.query(
+        "select * from campaigns where user_id=$1 and platform=$2 and status='pending' order by created_at desc limit 1",
+        [req.user.id, draft.platform])).rows[0] ?? null;
+      reused = Boolean(campaign);
+    }
+    if (draft && !campaign) {
       campaign = (await pool.query(
         `insert into campaigns(id,user_id,title,platform,status,budget_per_day,duration_days,audience,expected_leads)
          values ($1,$2,$3,$4,'pending',$5,$6,$7,$8) returning *`,
@@ -226,7 +240,7 @@ export function createApp(cfg, { pool, wa = createWhatsAppClient(cfg.whatsapp), 
       pool.query('select title, platform, status, budget_per_day, duration_days from campaigns where user_id=$1 order by created_at desc limit 8', [req.user.id]),
     ]);
     const context = buildAssistantContext({ business, competitors: comps.rows, campaigns: camps.rows });
-    const reply = await assistantReply({ cfg, context, history, text, campaign, fetchImpl });
+    const reply = await assistantReply({ cfg, context, history, text, campaign, reused, fetchImpl });
     await pool.query('insert into chat_messages(user_id, role, content) values ($1,$2,$3), ($1,$4,$5)', [req.user.id, 'user', text, 'assistant', reply]);
     res.json({ reply, campaign });
   }));
