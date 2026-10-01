@@ -34,6 +34,10 @@ create table if not exists businesses (
   onboarded boolean not null default false,
   updated_at timestamptz not null default now()
 );
+alter table businesses add column if not exists country text not null default '';
+alter table businesses add column if not exists usp text not null default '';
+alter table businesses add column if not exists price_range text not null default '';
+alter table businesses add column if not exists site_text text not null default '';
 create table if not exists campaigns (
   id uuid primary key,
   user_id uuid not null references users(id) on delete cascade,
@@ -79,6 +83,8 @@ create table if not exists competitors (
   analyzed_at timestamptz,
   created_at timestamptz not null default now()
 );
+alter table competitors add column if not exists reason text not null default '';
+alter table competitors add column if not exists source text not null default 'manual';
 create index if not exists competitors_user_idx on competitors(user_id, created_at);
 create table if not exists reports (
   id bigserial primary key,

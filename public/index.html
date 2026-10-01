@@ -1211,9 +1211,28 @@ input:focus,select:focus,textarea:focus{outline:none; border-color:var(--violet)
 
       <!-- Competitors -->
       <div class="app-page" id="page-competitors">
-        <div class="page-head"><div><h1>Competitors</h1><p>Add a competitor's website — your AI team reads it and tells you how to compete.</p></div></div>
+        <div class="page-head"><div><h1>Competitors</h1><p>Tell us about your business. Your AI team finds who you compete with, compares you, and tells you what to fix.</p></div></div>
         <div class="panel">
-          <h3>Add a competitor</h3>
+          <h3>1. About your business</h3>
+          <p style="color:var(--text-dim); font-size:13.5px; margin-bottom:16px;">The more detail you give, the better the comparison.</p>
+          <div class="field-row2">
+            <div class="field-group"><label>Your website</label><input type="text" id="aboutWebsite" maxlength="200" placeholder="yourbusiness.com"></div>
+            <div class="field-group"><label>Country / city you sell in</label><input type="text" id="aboutCountry" maxlength="80" placeholder="e.g. Lebanon, Beirut"></div>
+          </div>
+          <div class="field-group"><label>What do you offer?</label><textarea rows="3" id="aboutDesc" maxlength="1000" placeholder="Products or services, who they are for, anything that describes your business"></textarea></div>
+          <div class="field-row2">
+            <div class="field-group"><label>Price range</label><input type="text" id="aboutPrice" maxlength="60" placeholder="e.g. $$ mid-range, or $15–30 per item"></div>
+            <div class="field-group"><label>What makes you different?</label><input type="text" id="aboutUsp" maxlength="1000" placeholder="e.g. roasted daily, free delivery"></div>
+          </div>
+          <p class="form-error" id="aboutError" role="alert"></p>
+          <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <button class="btn btn-ghost btn-sm" id="aboutSaveBtn" onclick="saveAbout()">Save</button>
+            <button class="btn btn-primary btn-sm" id="discoverBtn" onclick="discoverCompetitors()">Find my competitors with AI</button>
+          </div>
+          <p style="color:var(--text-faint); font-size:12.5px; margin-top:12px;">The AI searches the web and may take up to a minute. Results are suggestions — check them.</p>
+        </div>
+        <div class="panel">
+          <h3>2. Add a competitor yourself (optional)</h3>
           <div class="field-row2">
             <div class="field-group"><label>Name</label><input type="text" id="compName" maxlength="100" placeholder="e.g. Riverstone Cafe"></div>
             <div class="field-group"><label>Website</label><input type="text" id="compUrl" maxlength="300" placeholder="riverstonecafe.com"></div>
@@ -1502,7 +1521,7 @@ function showPage(name){
   const link = document.querySelector('.side-link[data-page="'+name+'"]');
   if(link) link.classList.add('active');
   if(name === 'dashboard' || name === 'campaigns') refreshData();
-  if(name === 'competitors') loadCompetitors();
+  if(name === 'competitors'){ fillAbout(); loadCompetitors(); }
   if(name === 'analytics') loadReports();
 }
 function showToast(msg){
@@ -1717,6 +1736,37 @@ document.querySelectorAll('.goal-chip').forEach(chip=>{
 })();
 
 /* ---------- competitors ---------- */
+function fillAbout(){
+  const b = (me && me.business) || {};
+  $('aboutWebsite').value = b.website || '';
+  $('aboutCountry').value = b.country || '';
+  $('aboutDesc').value = b.description || '';
+  $('aboutPrice').value = b.price_range || '';
+  $('aboutUsp').value = b.usp || '';
+}
+async function saveAbout(quiet){
+  setError('aboutError','');
+  try{
+    me = await api('PUT','/business',{
+      website: $('aboutWebsite').value, country: $('aboutCountry').value, description: $('aboutDesc').value,
+      price_range: $('aboutPrice').value, usp: $('aboutUsp').value
+    });
+    if(quiet !== true) showToast('Saved.');
+    return true;
+  }catch(e){ setError('aboutError', e.message); return false; }
+}
+async function discoverCompetitors(){
+  const btn = $('discoverBtn');
+  busy(btn, true); const label = btn.textContent; btn.textContent = 'Searching the web…';
+  try{
+    if(await saveAbout(true)){
+      const r = await api('POST','/competitors/discover');
+      showToast(r.added.length ? 'Found ' + r.added.length + ' competitor(s).' : 'No new competitors found. Try adding more detail.');
+      await loadCompetitors();
+    }
+  }catch(e){ setError('aboutError', e.message); }
+  btn.textContent = label; busy(btn, false);
+}
 async function loadCompetitors(){
   try{ renderCompetitors((await api('GET','/competitors')).competitors); }
   catch(e){ showToast(e.message); }
@@ -1734,9 +1784,14 @@ function renderCompetitors(list){
     const h = document.createElement('h3'); h.style.marginBottom = '4px'; h.textContent = c.name;
     const u = document.createElement('div'); u.style.cssText = 'color:var(--text-faint); font-size:13px;'; u.textContent = c.url;
     info.appendChild(h); info.appendChild(u);
+    if(c.reason){
+      const why = document.createElement('div'); why.style.cssText = 'color:var(--text-dim); font-size:13.5px; margin-top:6px;';
+      why.textContent = (c.source === 'ai' ? 'Found by AI: ' : '') + c.reason;
+      info.appendChild(why);
+    }
     const actions = document.createElement('div');
     actions.style.cssText = 'display:flex; gap:8px; flex-wrap:wrap;';
-    const an = document.createElement('button'); an.className = 'btn btn-primary btn-sm'; an.textContent = c.analysis ? 'Re-analyse' : 'Analyse';
+    const an = document.createElement('button'); an.className = 'btn btn-primary btn-sm'; an.textContent = c.analysis ? 'Re-compare' : 'Compare with my business';
     an.addEventListener('click', ()=>analyseCompetitor(c.id, an));
     const del = document.createElement('button'); del.className = 'btn btn-ghost btn-sm'; del.textContent = 'Remove';
     del.addEventListener('click', ()=>removeCompetitor(c.id));

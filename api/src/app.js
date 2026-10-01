@@ -11,13 +11,14 @@ import {
 } from './auth.js';
 import { assistantReply, detectCampaignRequest } from './assistant.js';
 import { fetchPublicPage, parsePublicUrl, FetchBlockedError } from './safefetch.js';
-import { analyzeCompetitor, buildStats, writeReport } from './insights.js';
+import { analyzeCompetitor, buildStats, writeReport, discoverCompetitors } from './insights.js';
+import { extractPage } from './safefetch.js';
 
 const EMAIL = /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/;
 const CHANNELS = ['Instagram', 'Facebook', 'Meta Ads', 'TikTok', 'Google Business Profile', 'ChatGPT Ads', 'WhatsApp'];
 const BUSINESS_FIELDS = {
   name: 120, type: 60, industry: 60, website: 200, location: 120, description: 1000,
-  goal: 120, customer_age: 20, customer_type: 30, customer_location: 120, interests: 300, budget: 40,
+  goal: 120, country: 80, usp: 1000, price_range: 60, customer_age: 20, customer_type: 30, customer_location: 120, interests: 300, budget: 40,
 };
 
 const str = (v, max, field) => {
@@ -113,6 +114,7 @@ export function createApp(cfg, { pool, wa = createWhatsAppClient(cfg.whatsapp), 
   async function meResponse(userId) {
     const u = (await pool.query('select id,email,first_name,last_name,phone from users where id=$1', [userId])).rows[0];
     const business = (await pool.query('select * from businesses where user_id=$1', [userId])).rows[0] ?? null;
+    if (business) delete business.site_text; // internal cache of the user's own site text
     return { user: { id: u.id, email: u.email, firstName: u.first_name, lastName: u.last_name, phone: u.phone, canSendWhatsApp: isAdmin(u.email) }, business };
   }
   const isAdmin = (email) => cfg.adminEmails.includes(String(email).toLowerCase());
@@ -222,10 +224,49 @@ export function createApp(cfg, { pool, wa = createWhatsAppClient(cfg.whatsapp), 
   }));
 
   // --- competitors ---
-  const competitorRow = (r) => ({ id: r.id, name: r.name, url: r.url, analysis: r.analysis, analyzed_at: r.analyzed_at });
+  const competitorRow = (r) => ({ id: r.id, name: r.name, url: r.url, reason: r.reason, source: r.source, analysis: r.analysis, analyzed_at: r.analyzed_at });
   api.get('/competitors', requireUser, wrap(async (req, res) => {
     const { rows } = await pool.query('select * from competitors where user_id=$1 order by created_at', [req.user.id]);
     res.json({ competitors: rows.map(competitorRow) });
+  }));
+  api.post('/competitors/discover', requireUser, aiLimiter, wrap(async (req, res) => {
+    if (!cfg.anthropicApiKey) return res.status(503).json({ error: 'AI is not enabled on this server (ANTHROPIC_API_KEY missing)' });
+    const business = (await pool.query('select * from businesses where user_id=$1', [req.user.id])).rows[0];
+    if (!business || (!business.description && !business.website)) {
+      throw new ValidationError('Describe your business or add your website first');
+    }
+    if (business.website) {
+      try {
+        const url = /^https?:\/\//i.test(business.website) ? business.website : `https://${business.website}`;
+        business.site_text = [extractPage(await fetchPage(url))].map((p) => `${p.title}. ${p.description}. ${p.text}`)[0].slice(0, 4000);
+        await pool.query('update businesses set site_text=$2 where user_id=$1', [req.user.id, business.site_text]);
+      } catch { /* own site is optional context */ }
+    }
+    const found = await discoverCompetitors({ cfg, business, fetchImpl });
+    if (found === null) return res.status(502).json({ error: 'The AI search did not respond. Try again in a minute.' });
+    const existing = (await pool.query('select url from competitors where user_id=$1', [req.user.id])).rows;
+    const hostOf = (u) => { try { return new URL(/^https?:\/\//i.test(u) ? u : `https://${u}`).hostname.replace(/^www\./, ''); } catch { return ''; } };
+    const seen = new Set([...existing.map((r) => hostOf(r.url)), hostOf(business.website || '')].filter(Boolean));
+    let slots = 10 - existing.length;
+    const added = [];
+    for (const c of found) {
+      if (slots <= 0) break;
+      const name = typeof c?.name === 'string' ? c.name.trim().slice(0, 100) : '';
+      let url = typeof c?.url === 'string' ? c.url.trim().slice(0, 300) : '';
+      if (!name || !url) continue;
+      if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
+      try { parsePublicUrl(url); } catch { continue; }
+      const host = hostOf(url);
+      if (!host || seen.has(host)) continue;
+      seen.add(host); slots--;
+      const why = typeof c.why === 'string' ? c.why.trim().slice(0, 200) : '';
+      const { rows } = await pool.query(
+        "insert into competitors(id,user_id,name,url,reason,source) values ($1,$2,$3,$4,$5,'ai') returning *",
+        [crypto.randomUUID(), req.user.id, name, url, why]);
+      added.push(competitorRow(rows[0]));
+    }
+    await log(req.user.id, `AI found ${added.length} competitor(s) for you`);
+    res.json({ added });
   }));
   api.post('/competitors', requireUser, writeLimiter, wrap(async (req, res) => {
     const name = str(req.body?.name, 100, 'name');

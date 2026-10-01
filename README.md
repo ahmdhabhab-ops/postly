@@ -8,10 +8,11 @@
 
 ## What is real vs sample
 Real, stored per user in Postgres: accounts/login, onboarding profile, campaigns (drafted by the assistant, approved by you),
-assistant chat history, activity feed, competitor analysis (reads the competitor's public web page), AI marketing reports
+assistant chat history, activity feed, AI competitor discovery (Claude + web search from your business profile), competitor comparison (reads the competitor's public page), AI marketing reports
 (written from your Postly data only), WhatsApp sending (operator only).
 Sample data (labelled in the UI): Ads, Analytics numbers, AI Search, Content, Billing. Channel "Connect" buttons show Coming soon.
 Publishing to ad platforms (Meta/Google/TikTok) and OAuth channel connections are not built yet.
+Competitor discovery needs `ANTHROPIC_API_KEY` and web search enabled for your organisation in the Anthropic Console.
 The assistant uses Claude when `ANTHROPIC_API_KEY` is set, otherwise simple built-in replies.
 
 ## Deploy (Dokploy)
