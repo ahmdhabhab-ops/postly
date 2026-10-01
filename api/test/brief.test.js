@@ -149,3 +149,9 @@ test('with no website at all, the client is told and pointed to the partner', as
   assert.match(r.json.campaign.website_notes[0], /do not have a website yet/);
   assert.match(r.json.campaign.website_notes[0], /hostbotics\.net/);
 });
+
+test('/api/me tells the client which partner to link to', async () => {
+  const c = await signup('help@z.com');
+  const me = await c.get('/api/me');
+  assert.deepEqual(me.json.help, { name: 'Hostbotics', url: 'https://hostbotics.net/' });
+});

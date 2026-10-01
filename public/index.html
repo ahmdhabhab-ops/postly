@@ -1670,6 +1670,7 @@ function campaignCard(c){
     slot.appendChild(d);
   }
   planList(slot, 'Before you launch: your website', c.website_notes, 'rgba(255,148,148,0.5)');
+  if((c.website_notes || []).some(mentionsHelp)){ const btn = helpButton(); if(btn){ btn.style.margin = '0 0 12px'; btn.style.display = 'inline-flex'; slot.appendChild(btn); } }
 
   const actions = card.querySelector('.card-actions');
   const mk = (label, cls, fn)=>{ const x = document.createElement('button'); x.className = 'btn btn-sm ' + cls; x.textContent = label; x.addEventListener('click', ()=>fn(x)); actions.appendChild(x); return x; };
@@ -1770,12 +1771,25 @@ async function sendWhatsApp(){
 /* ---------- assistant ---------- */
 /* Minimal, safe rendering of AI text: line breaks, "- " bullets and **bold** (no HTML is ever injected). */
 function inlineRich(node, text){
-  text.split(/(\*\*[^*]+\*\*)/).forEach(part=>{
+  // **bold** and http(s) links; everything else stays plain text
+  text.split(/(\*\*[^*]+\*\*|https?:\/\/[^\s)]*[^\s).,;:!?])/).forEach(part=>{
     if(part.length > 4 && part.startsWith('**') && part.endsWith('**')){
       const b = document.createElement('strong'); b.textContent = part.slice(2, -2); node.appendChild(b);
+    }else if(/^https?:\/\//.test(part)){
+      const a = document.createElement('a'); a.href = part; a.target = '_blank'; a.rel = 'noopener noreferrer';
+      a.textContent = part; a.style.cssText = 'color:var(--violet); text-decoration:underline;'; node.appendChild(a);
     }else if(part){ node.appendChild(document.createTextNode(part)); }
   });
 }
+function helpButton(){
+  const h = me && me.help;
+  if(!h || !h.url) return null;
+  const a = document.createElement('a');
+  a.className = 'btn btn-primary btn-sm'; a.href = h.url; a.target = '_blank'; a.rel = 'noopener noreferrer';
+  a.textContent = 'Open ' + h.name + ' ↗'; a.style.marginTop = '10px';
+  return a;
+}
+const mentionsHelp = (text)=>Boolean(me && me.help && me.help.url && String(text).includes(me.help.url));
 function renderRich(el, text){
   el.textContent = '';
   let list = null;
@@ -1797,7 +1811,10 @@ function addBubble(role, text){
   m.className = 'msg ' + (role === 'user' ? 'user' : 'ai');
   if(role !== 'user'){ const w = document.createElement('div'); w.className = 'who'; w.textContent = 'Postly'; m.appendChild(w); }
   if(role === 'user'){ m.appendChild(document.createTextNode(text)); }
-  else { const body = document.createElement('div'); renderRich(body, text); m.appendChild(body); }
+  else {
+    const body = document.createElement('div'); renderRich(body, text); m.appendChild(body);
+    if(mentionsHelp(text)){ const btn = helpButton(); if(btn) m.appendChild(btn); }
+  }
   log.appendChild(m);
   log.scrollTop = log.scrollHeight;
 }

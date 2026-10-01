@@ -37,6 +37,7 @@ test('business profile stores market, price and differentiator; internal site te
   assert.equal(r.json.business.country, 'Lebanon');
   assert.equal(r.json.business.usp, 'Roasted daily');
   assert.ok(!('site_text' in r.json.business));
+  assert.ok(!('site_signals' in r.json.business));
 });
 
 test('discover needs a description or website first', async () => {
