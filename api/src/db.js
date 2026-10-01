@@ -38,6 +38,7 @@ alter table businesses add column if not exists country text not null default ''
 alter table businesses add column if not exists usp text not null default '';
 alter table businesses add column if not exists price_range text not null default '';
 alter table businesses add column if not exists site_text text not null default '';
+alter table businesses add column if not exists last_discovery_at timestamptz;
 create table if not exists campaigns (
   id uuid primary key,
   user_id uuid not null references users(id) on delete cascade,

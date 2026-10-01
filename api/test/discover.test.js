@@ -76,6 +76,7 @@ test('discover uses web search, continues on pause_turn, filters unsafe/duplicat
   assert.match(calls[0].messages[0].content, /We sell coffee beans in Beirut/);   // own site text used
 
   // second discover adds nothing new (already tracked)
+  await pool.query("update businesses set last_discovery_at = null where user_id = (select id from users where email='d3@z.com')");
   script = [text('[{"name":"Riverstone Cafe","url":"https://riverstone.example","why":"again"}]')];
   assert.deepEqual((await c.post('/api/competitors/discover')).json.added, []);
 });
@@ -85,6 +86,7 @@ test('discover: bad model output and API failure are handled', async () => {
   await c.put('/api/business', { description: 'x shop' });
   script = [text('Sorry, I could not find any.')];
   assert.deepEqual((await c.post('/api/competitors/discover')).json.added, []);
+  await pool.query("update businesses set last_discovery_at = null where user_id = (select id from users where email='d4@z.com')");
   const failing = createApp(cfg, { pool, fetchImpl: async () => new Response('{}', { status: 500 }) }).listen(0);
   const b2 = `http://127.0.0.1:${failing.address().port}`;
   const login = await fetch(b2 + '/api/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: 'd4@z.com', password: 'correct horse 1' }) });
@@ -117,7 +119,7 @@ test('several countries: normalised, capped at 6, searched per market, market sa
   assert.deepEqual(r.json.added.map((x) => x.market), ['Lebanon', 'UAE']);
   assert.match(calls[0].system, /each market separately/i);
   assert.match(calls[0].messages[0].content, /Lebanon, UAE, Qatar/);
-  assert.ok(calls[0].tools[0].max_uses >= 8 || calls[0].tools[0].max_uses === Math.min(8, 3 + 3 * 2));
+  assert.equal(calls[0].tools[0].max_uses, 5);   // 3 markets -> capped at 5 searches
   assert.equal((await c.get('/api/competitors')).json.competitors[0].market, 'Lebanon');
 });
 
@@ -146,4 +148,56 @@ test('discover reports how many candidates the AI returned', async () => {
   script = [text('Sorry [1] none.')];
   const r = await c.post('/api/competitors/discover');
   assert.deepEqual(r.json, { added: [], found: 0 });
+});
+
+test('discovery: once per 24h per user, failures give the slot back, operators are exempt', async () => {
+  const c = await signup('lim@z.com');
+  await c.put('/api/business', { description: 'shop' });
+  script = [text('[{"name":"A","url":"https://a1.example","why":"w"}]')];
+  assert.equal((await c.post('/api/competitors/discover')).status, 200);
+  const again = await c.post('/api/competitors/discover');
+  assert.equal(again.status, 429);
+  assert.match(again.json.error, /once per day/i);
+  assert.equal(calls.length > 0, true);
+
+  // after 24h it works again
+  await pool.query("update businesses set last_discovery_at = now() - interval '25 hours' where user_id=(select id from users where email='lim@z.com')");
+  script = [text('[{"name":"B","url":"https://b1.example","why":"w"}]')];
+  assert.equal((await c.post('/api/competitors/discover')).status, 200);
+
+  // a failed AI call does not use up the day
+  const f = await signup('lim2@z.com');
+  await f.put('/api/business', { description: 'shop' });
+  const failing = createApp(cfg, { pool, fetchImpl: async () => new Response('{}', { status: 500 }) }).listen(0);
+  const fb = `http://127.0.0.1:${failing.address().port}`;
+  const login = await fetch(fb + '/api/auth/login', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: 'lim2@z.com', password: 'correct horse 1' }) });
+  const cookie = login.headers.getSetCookie()[0].split(';')[0];
+  const post = () => fetch(fb + '/api/competitors/discover', { method: 'POST', headers: { 'content-type': 'application/json', cookie }, body: '{}' });
+  assert.equal((await post()).status, 502);
+  assert.equal((await post()).status, 502);   // not 429: the slot was refunded
+  failing.close();
+
+  // operators are exempt
+  const op = createApp({ ...cfg, adminEmails: ['lim@z.com'] }, { pool, fetchImpl: async () => new Response(JSON.stringify({ stop_reason: 'end_turn', content: [{ type: 'text', text: '[]' }] }), { status: 200 }) }).listen(0);
+  const ob = `http://127.0.0.1:${op.address().port}`;
+  const ol = await fetch(ob + '/api/auth/login', { method: 'POST', headers: { 'content-type': 'application/json', }, body: JSON.stringify({ email: 'lim@z.com', password: 'correct horse 1' }) });
+  const oc = ol.headers.getSetCookie()[0].split(';')[0];
+  const opPost = () => fetch(ob + '/api/competitors/discover', { method: 'POST', headers: { 'content-type': 'application/json', cookie: oc }, body: '{}' });
+  assert.equal((await opPost()).status, 200);
+  assert.equal((await opPost()).status, 200);
+  op.close();
+});
+
+test('cheaper search model uses the basic web search tool; newer models use dynamic filtering', async () => {
+  const { completeWithSearch } = await import('../src/llm.js');
+  const seen = [];
+  const f = async (_u, o) => { seen.push(JSON.parse(o.body)); return new Response(JSON.stringify({ stop_reason: 'end_turn', content: [{ type: 'text', text: 'ok' }] }), { status: 200 }); };
+  await completeWithSearch({ cfg: { ...cfg, searchModel: 'claude-haiku-4-5' }, system: 's', user: 'u', fetchImpl: f });
+  await completeWithSearch({ cfg: { ...cfg, searchModel: 'claude-opus-5-5' }, system: 's', user: 'u', fetchImpl: f });
+  await completeWithSearch({ cfg: { ...cfg, searchModel: '' }, system: 's', user: 'u', fetchImpl: f });
+  assert.deepEqual(seen.map((b) => [b.model, b.tools[0].type]), [
+    ['claude-haiku-4-5', 'web_search_20250305'],
+    ['claude-opus-5-5', 'web_search_20260209'],
+    ['claude-sonnet-5-5', 'web_search_20260209'],
+  ]);
 });

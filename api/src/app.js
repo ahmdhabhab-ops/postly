@@ -127,7 +127,7 @@ export function createApp(cfg, { pool, wa = createWhatsAppClient(cfg.whatsapp), 
   async function meResponse(userId) {
     const u = (await pool.query('select id,email,first_name,last_name,phone from users where id=$1', [userId])).rows[0];
     const business = (await pool.query('select * from businesses where user_id=$1', [userId])).rows[0] ?? null;
-    if (business) delete business.site_text; // internal cache of the user's own site text
+    if (business) { delete business.site_text; delete business.last_discovery_at; } // internal cache of the user's own site text
     return { user: { id: u.id, email: u.email, firstName: u.first_name, lastName: u.last_name, phone: u.phone, canSendWhatsApp: isAdmin(u.email) }, business };
   }
   const isAdmin = (email) => cfg.adminEmails.includes(String(email).toLowerCase());
@@ -258,7 +258,23 @@ export function createApp(cfg, { pool, wa = createWhatsAppClient(cfg.whatsapp), 
         await pool.query('update businesses set site_text=$2 where user_id=$1', [req.user.id, business.site_text]);
       } catch { /* own site is optional context */ }
     }
-    const found = await discoverCompetitors({ cfg, business, fetchImpl });
+    // One AI discovery per 24h per user (operators in ADMIN_EMAILS are exempt). Failed calls give the slot back.
+    const operator = isAdmin(req.user.email);
+    const prev = business.last_discovery_at;
+    if (!operator) {
+      const claim = await pool.query(
+        `update businesses set last_discovery_at = now()
+          where user_id = $1 and (last_discovery_at is null or last_discovery_at < now() - interval '24 hours')
+          returning 1`, [req.user.id]);
+      if (!claim.rowCount) {
+        const hrs = Math.max(1, Math.ceil((new Date(prev).getTime() + 86_400_000 - Date.now()) / 3_600_000));
+        return res.status(429).json({ error: `AI competitor search can run once per day to keep costs low. Try again in about ${hrs} hour${hrs === 1 ? '' : 's'}.` });
+      }
+    }
+    const refund = () => (operator ? null : pool.query('update businesses set last_discovery_at = $2 where user_id = $1', [req.user.id, prev]));
+    let found;
+    try { found = await discoverCompetitors({ cfg, business, fetchImpl }); } catch (e) { await refund(); throw e; }
+    if (found === null) await refund();
     if (found === null) return res.status(502).json({ error: 'The AI search did not respond. Try again in a minute.' });
     const existing = (await pool.query('select url from competitors where user_id=$1', [req.user.id])).rows;
     const hostOf = (u) => { try { return new URL(/^https?:\/\//i.test(u) ? u : `https://${u}`).hostname.replace(/^www\./, ''); } catch { return ''; } };

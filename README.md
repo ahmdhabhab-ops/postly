@@ -12,7 +12,7 @@ assistant chat history, activity feed, AI competitor discovery (Claude + web sea
 (written from your Postly data only), WhatsApp sending (operator only).
 Sample data (labelled in the UI): Ads, Analytics numbers, AI Search, Content, Billing. Channel "Connect" buttons show Coming soon.
 Publishing to ad platforms (Meta/Google/TikTok) and OAuth channel connections are not built yet.
-Competitor discovery needs `ANTHROPIC_API_KEY` and web search enabled for your organisation in the Anthropic Console.
+Competitor discovery runs on a cheaper model (`ANTHROPIC_SEARCH_MODEL`, default Haiku 4.5), at most once per 24h per user (operators in `ADMIN_EMAILS` are exempt; a failed call does not use the slot). It needs `ANTHROPIC_API_KEY` and web search enabled for your organisation in the Anthropic Console.
 The assistant uses Claude when `ANTHROPIC_API_KEY` is set, otherwise simple built-in replies.
 
 ## Deploy (Dokploy)

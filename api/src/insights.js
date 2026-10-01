@@ -36,7 +36,7 @@ export async function analyzeCompetitor({ cfg, business, competitor, html, fetch
 export async function discoverCompetitors({ cfg, business, fetchImpl }) {
   const countries = markets(business).split(', ').filter(Boolean);
   const out = await completeWithSearch({
-    cfg, fetchImpl, maxTokens: 3000, maxSearches: Math.min(8, 3 + countries.length * 2), country: undefined,
+    cfg, fetchImpl, maxTokens: 3000, maxSearches: Math.min(5, 2 + countries.length), country: undefined,
     system: [
       'You find real direct competitors for a small business by searching the web.',
       'Prefer businesses in the same niche that a customer in the given market would compare with this one. Only return companies whose website you actually found in search results.',

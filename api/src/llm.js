@@ -21,7 +21,10 @@ export async function complete({ cfg, system, user, maxTokens = 700, fetchImpl =
 // Needs web search enabled for the organisation in the Anthropic Console.
 export async function completeWithSearch({ cfg, system, user, maxTokens = 2000, maxSearches = 5, country, totalMs = 110_000, fetchImpl = fetch }) {
   if (!cfg.anthropicApiKey) return null;
-  const tool = { type: 'web_search_20260209', name: 'web_search', max_uses: maxSearches };
+  const model = cfg.searchModel || cfg.anthropicModel;
+  // Dynamic-filtering web search needs Sonnet 4.6+/Opus 4.6+; older/smaller models (e.g. Haiku 4.5) use the basic tool.
+  const dynamic = /(opus-(4-[6-9]|5)|sonnet-(4-6|5)|fable|mythos)/.test(model);
+  const tool = { type: dynamic ? 'web_search_20260209' : 'web_search_20250305', name: 'web_search', max_uses: maxSearches };
   if (country) tool.user_location = { type: 'approximate', country };
   const messages = [{ role: 'user', content: user }];
   const deadline = Date.now() + totalMs;
@@ -32,7 +35,7 @@ export async function completeWithSearch({ cfg, system, user, maxTokens = 2000, 
       const res = await fetchImpl('https://api.anthropic.com/v1/messages', {
         method: 'POST',
         headers: { 'x-api-key': cfg.anthropicApiKey, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-        body: JSON.stringify({ model: cfg.anthropicModel, max_tokens: maxTokens, system, tools: [tool], messages }),
+        body: JSON.stringify({ model, max_tokens: maxTokens, system, tools: [tool], messages }),
         signal: AbortSignal.timeout(Math.min(90_000, left)),
       });
       if (!res.ok) throw new Error(`anthropic ${res.status}`);

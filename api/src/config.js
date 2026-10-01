@@ -21,6 +21,8 @@ export function loadConfig(env = process.env) {
     adminApiKey: get('ADMIN_API_KEY'),
     anthropicApiKey: get('ANTHROPIC_API_KEY'),
     anthropicModel: get('ANTHROPIC_MODEL') || 'claude-sonnet-5-5',
+    // Competitor discovery runs many web searches, so it uses a cheaper model by default.
+    searchModel: get('ANTHROPIC_SEARCH_MODEL') || 'claude-haiku-4-5',
     whatsapp: wa,
     whatsappEnabled: Boolean(wa.accessToken && wa.phoneNumberId),
     webhookEnabled: Boolean(wa.verifyToken && wa.appSecret),
