@@ -573,6 +573,22 @@ input:focus,select:focus,textarea:focus{outline:none; border-color:var(--violet)
 .chip{display:inline-flex; align-items:center; gap:6px; background:rgba(245,181,68,0.14); border:1px solid var(--border-glow); color:var(--text); border-radius:100px; padding:4px 6px 4px 12px; font-size:13px;}
 .chip button{width:18px; height:18px; border-radius:50%; line-height:1; color:var(--text-dim); font-size:15px;}
 .chip button:hover{background:var(--hover-tint); color:var(--text);}
+.plan-modal{position:fixed; inset:0; z-index:400; background:rgba(0,0,0,0.6); display:flex; align-items:flex-start; justify-content:center; padding:32px 16px; overflow-y:auto;}
+.plan-sheet{background:var(--bg); border:1px solid var(--border-strong); border-radius:var(--radius-md); width:100%; max-width:820px; padding:28px 30px 32px; box-shadow:0 30px 80px rgba(0,0,0,0.5);}
+.plan-sheet h2{font-size:22px; margin-bottom:4px;}
+.plan-bar{display:flex; gap:8px; flex-wrap:wrap; margin:16px 0 8px;}
+.advice-card{display:grid; grid-template-columns:1fr auto; gap:6px 16px; padding:16px 0; border-top:1px solid var(--border);}
+.advice-card:first-of-type{border-top:none;}
+.fit{font-size:11.5px; font-weight:600; padding:3px 10px; border-radius:100px; margin-left:8px; background:var(--surface-2); color:var(--text-dim);}
+.fit.best{background:rgba(62,217,160,0.16); color:var(--green);}
+.fit.good{background:rgba(245,181,68,0.16); color:var(--amber);}
+@media print{
+  body.printing-plan > *:not(#planModal){display:none !important;}
+  body.printing-plan #planModal{position:static; background:#fff; padding:0; overflow:visible;}
+  body.printing-plan .plan-sheet{box-shadow:none; border:none; max-width:none; color:#000; background:#fff;}
+  body.printing-plan .plan-bar, body.printing-plan .no-print{display:none !important;}
+  body.printing-plan .plan-sheet *{color:#000 !important; background:transparent !important; border-color:#bbb !important;}
+}
 .form-error{color:var(--red); font-size:13.5px; margin:0 0 14px; min-height:0;}
 .form-error:empty{display:none;}
 .sample-note{font-size:12.5px; color:var(--text-faint); border:1px dashed var(--border-strong); border-radius:var(--radius-sm); padding:9px 14px; margin-bottom:22px;}
@@ -1172,6 +1188,7 @@ input:focus,select:focus,textarea:focus{outline:none; border-color:var(--violet)
           <div class="platform-picker">
             <button class="btn btn-primary" onclick="togglePlatformMenu(event)">+ New Campaign</button>
             <div class="platform-menu" id="platformMenu">
+              <button type="button" class="platform-option" onclick="chooseForMe()"><span class="po-icon">AI</span>Not sure? Help me choose</button>
               <div class="pm-label">Which platform?</div>
               <button type="button" class="platform-option" onclick="pickCampaignPlatform('Instagram')"><span class="po-icon">IG</span>Instagram</button>
               <button type="button" class="platform-option" onclick="pickCampaignPlatform('Facebook')"><span class="po-icon">FB</span>Facebook</button>
@@ -1180,6 +1197,15 @@ input:focus,select:focus,textarea:focus{outline:none; border-color:var(--violet)
               <button type="button" class="platform-option" onclick="pickCampaignPlatform('ChatGPT')"><span class="po-icon" style="font-size:9px;">GPT</span>ChatGPT Ads</button>
             </div>
           </div>
+        </div>
+        <div class="panel" id="advicePanel">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:6px;">
+            <h3 style="margin:0;">Where should you advertise?</h3>
+            <button class="btn btn-primary btn-sm" id="adviceBtn" onclick="loadAdvice(true)">Recommend for my business</button>
+          </div>
+          <p style="color:var(--text-dim); font-size:13.5px; margin-bottom:6px;">Not sure which platform to start with? Your AI team compares them for your business, your customers and your budget. You choose.</p>
+          <p class="form-error" id="adviceError" role="alert"></p>
+          <div id="adviceList"></div>
         </div>
         <div class="sample-note">Approving a campaign saves your decision in Postly. Nothing is published or spent yet: publishing to the ad platforms starts once those channel integrations go live.</div>
         <div class="tabs" id="campTabs"></div>
@@ -1532,6 +1558,7 @@ function showPage(name){
   const link = document.querySelector('.side-link[data-page="'+name+'"]');
   if(link) link.classList.add('active');
   if(name === 'dashboard' || name === 'campaigns') refreshData();
+  if(name === 'campaigns') loadAdvice(false);
   if(name === 'competitors'){ fillAbout(); loadCompetitors(); }
   if(name === 'analytics') loadReports();
 }
@@ -1649,6 +1676,51 @@ async function copyText(text, card){
   box.value = text; box.focus(); box.select();
   showToast('Press Ctrl+C to copy the plan.');
 }
+function fillPlan(d, c){
+  const b = c.brief, a = b.audience;
+  planRow(d, 'Objective', b.objective);
+  planRow(d, 'Who to target', 'Ages ' + a.age_min + '–' + a.age_max + ' · ' + a.genders + (a.locations.length ? ' · ' + a.locations.join(', ') : ''));
+  planRow(d, c.platform === 'Google' ? 'Search keywords' : 'Interests', a.interests);
+  planRow(d, 'Targeting notes', a.notes);
+  planRow(d, 'Where ads show', b.placements);
+  planRow(d, 'Ad formats', b.creative.formats);
+  planList(d, 'Creative ideas', b.creative.ideas);
+  planRow(d, 'Headline', b.copy.headline);
+  planRow(d, 'Main text', b.copy.primary_text);
+  planRow(d, 'Button', b.copy.cta);
+  planRow(d, 'Send people to', b.landing);
+  planRow(d, 'What to track', b.kpis);
+  planList(d, 'We assumed (change if you know better)', b.assumptions, 'rgba(255,184,76,0.5)');
+  planList(d, 'Help us improve this plan: tell the assistant', b.questions);
+}
+function closePlanModal(){ const m = $('planModal'); if(m) m.remove(); document.removeEventListener('keydown', escClose); }
+function escClose(e){ if(e.key === 'Escape') closePlanModal(); }
+function openPlanModal(c){
+  closePlanModal();
+  const m = document.createElement('div'); m.className = 'plan-modal'; m.id = 'planModal';
+  m.addEventListener('click', e=>{ if(e.target === m) closePlanModal(); });
+  const sheet = document.createElement('div'); sheet.className = 'plan-sheet'; sheet.setAttribute('role','dialog'); sheet.setAttribute('aria-modal','true');
+  const h = document.createElement('h2'); h.textContent = c.title; sheet.appendChild(h);
+  const sub = document.createElement('div'); sub.style.cssText = 'color:var(--text-dim); font-size:14px;';
+  sub.textContent = c.platform + ' · $' + c.budget_per_day + '/day for ' + c.duration_days + ' days (total $' + (c.budget_per_day * c.duration_days) + ') · ' + (c.status === 'live' ? 'Approved, not published yet' : 'Awaiting approval');
+  sheet.appendChild(sub);
+  const bar = document.createElement('div'); bar.className = 'plan-bar';
+  const xl = document.createElement('a'); xl.className = 'btn btn-primary btn-sm'; xl.href = '/api/campaigns/' + encodeURIComponent(c.id) + '/plan.xlsx'; xl.setAttribute('download',''); xl.textContent = 'Download Excel';
+  const pr = document.createElement('button'); pr.className = 'btn btn-ghost btn-sm'; pr.textContent = 'Print / Save as PDF';
+  pr.addEventListener('click', ()=>{ document.body.classList.add('printing-plan'); window.print(); });
+  const cp = document.createElement('button'); cp.className = 'btn btn-ghost btn-sm'; cp.textContent = 'Copy';
+  cp.addEventListener('click', ()=>copyText(briefToText(c), sheet));
+  const cl = document.createElement('button'); cl.className = 'btn btn-text btn-sm'; cl.textContent = 'Close'; cl.addEventListener('click', closePlanModal);
+  [xl, pr, cp, cl].forEach(x=>bar.appendChild(x));
+  sheet.appendChild(bar);
+  if(c.brief) fillPlan(sheet, c); else { const p = document.createElement('p'); p.className = 'empty-note'; p.textContent = 'No plan yet. Use “Create plan” on the campaign.'; sheet.appendChild(p); }
+  planList(sheet, 'Before you launch: your website', c.website_notes, 'rgba(255,148,148,0.5)');
+  const help = (c.website_notes || []).some(mentionsHelp) ? helpButton() : null;
+  if(help){ help.classList.add('no-print'); sheet.appendChild(help); }
+  m.appendChild(sheet); document.body.appendChild(m);
+  document.addEventListener('keydown', escClose);
+}
+window.addEventListener('afterprint', ()=>document.body.classList.remove('printing-plan'));
 function campaignCard(c){
   const card = document.createElement('div');
   card.className = 'campaign-card';
@@ -1674,21 +1746,7 @@ function campaignCard(c){
     const d = document.createElement('details'); d.open = !live;
     const sm = document.createElement('summary'); sm.style.cssText = 'cursor:pointer; font-weight:600; font-size:14px; margin-bottom:6px;'; sm.textContent = 'Campaign plan';
     d.appendChild(sm);
-    const a = b.audience;
-    planRow(d, 'Objective', b.objective);
-    planRow(d, 'Who to target', 'Ages ' + a.age_min + '–' + a.age_max + ' · ' + a.genders + (a.locations.length ? ' · ' + a.locations.join(', ') : ''));
-    planRow(d, c.platform === 'Google' ? 'Search keywords' : 'Interests', a.interests);
-    planRow(d, 'Targeting notes', a.notes);
-    planRow(d, 'Where ads show', b.placements);
-    planRow(d, 'Ad formats', b.creative.formats);
-    planList(d, 'Creative ideas', b.creative.ideas);
-    planRow(d, 'Headline', b.copy.headline);
-    planRow(d, 'Main text', b.copy.primary_text);
-    planRow(d, 'Button', b.copy.cta);
-    planRow(d, 'Send people to', b.landing);
-    planRow(d, 'What to track', b.kpis);
-    planList(d, 'We assumed (change if you know better)', b.assumptions, 'rgba(255,184,76,0.5)');
-    planList(d, 'Help us improve this plan: tell the assistant', b.questions);
+    fillPlan(d, c);
     slot.appendChild(d);
   }
   planList(slot, 'Before you launch: your website', c.website_notes, 'rgba(255,148,148,0.5)');
@@ -1697,7 +1755,12 @@ function campaignCard(c){
   const actions = card.querySelector('.card-actions');
   const mk = (label, cls, fn)=>{ const x = document.createElement('button'); x.className = 'btn btn-sm ' + cls; x.textContent = label; x.addEventListener('click', ()=>fn(x)); actions.appendChild(x); return x; };
   if(!live) mk('Approve & Launch', 'btn-primary', (x)=>approveCampaign(c.id, x));
-  if(b) mk('Copy plan', 'btn-ghost', ()=>copyText(briefToText(c), card));
+  if(b){
+    mk('View full plan', 'btn-ghost', ()=>openPlanModal(c));
+    const xl = document.createElement('a'); xl.className = 'btn btn-ghost btn-sm'; xl.textContent = 'Download Excel';
+    xl.href = '/api/campaigns/' + encodeURIComponent(c.id) + '/plan.xlsx'; xl.setAttribute('download',''); actions.appendChild(xl);
+    mk('Copy plan', 'btn-ghost', ()=>copyText(briefToText(c), card));
+  }
   mk(b ? 'Rewrite plan' : 'Create plan', 'btn-ghost', async (x)=>{
     busy(x, true); x.textContent = 'Writing…';
     try{ await api('POST','/campaigns/'+c.id+'/plan'); await refreshData(); }
@@ -1706,6 +1769,43 @@ function campaignCard(c){
   if(!live) mk('Discard', 'btn-ghost', (x)=>discardCampaign(c.id, x));
   if(!actions.children.length) actions.remove();
   return card;
+}
+function renderAdvice(list, ai){
+  const box = $('adviceList');
+  box.innerHTML = '';
+  if(!list || !list.length){ box.innerHTML = '<p class="empty-note">No recommendation yet. Click “Recommend for my business”.</p>'; return; }
+  list.forEach(x=>{
+    const row = document.createElement('div'); row.className = 'advice-card';
+    const left = document.createElement('div');
+    const t = document.createElement('div'); t.style.cssText = 'font-weight:600; font-size:15px;';
+    t.appendChild(document.createTextNode(x.platform));
+    const f = document.createElement('span'); f.className = 'fit ' + (x.fit === 'Best fit' ? 'best' : x.fit === 'Good fit' ? 'good' : ''); f.textContent = x.fit + (x.budget_share ? ' · ' + x.budget_share + '% of budget' : '');
+    t.appendChild(f); left.appendChild(t);
+    const why = document.createElement('div'); why.style.cssText = 'color:var(--text-dim); font-size:13.5px; margin-top:4px;'; why.textContent = x.why; left.appendChild(why);
+    if(x.first_step){ const st = document.createElement('div'); st.style.cssText = 'color:var(--text-faint); font-size:12.5px; margin-top:4px;'; st.textContent = 'First step: ' + x.first_step; left.appendChild(st); }
+    const btn = document.createElement('button'); btn.className = 'btn btn-sm ' + (x.fit === 'Best fit' || x.fit === 'Good fit' ? 'btn-primary' : 'btn-ghost');
+    btn.textContent = (x.fit === 'Later' || x.fit === 'Skip for now') ? 'Create anyway' : 'Create campaign';
+    btn.addEventListener('click', ()=>sendSuggest('Create a ' + x.platform.replace(' Ads','') + ' campaign for me.'));
+    row.appendChild(left); row.appendChild(btn); box.appendChild(row);
+  });
+  if(ai === false){ const n = document.createElement('p'); n.className = 'empty-note'; n.style.marginTop = '10px'; n.textContent = 'General guidance: AI recommendations are not available right now.'; box.appendChild(n); }
+}
+async function loadAdvice(generate){
+  setError('adviceError','');
+  const btn = $('adviceBtn');
+  if(generate){ busy(btn, true); btn.textContent = 'Thinking…'; }
+  try{
+    const r = generate ? await api('POST','/advice/channels') : await api('GET','/advice/channels');
+    renderAdvice(r.advice, r.ai);
+    if(generate) btn.textContent = 'Update recommendation';
+    else if(r.advice) btn.textContent = 'Update recommendation';
+  }catch(e){ setError('adviceError', e.message); if(generate) btn.textContent = 'Recommend for my business'; }
+  if(generate) busy(btn, false);
+}
+function chooseForMe(){
+  $('platformMenu').classList.remove('open');
+  $('advicePanel').scrollIntoView({behavior:'smooth', block:'start'});
+  if(!$('adviceList').querySelector('.advice-card')) loadAdvice(true);
 }
 function renderCampaigns(){
   const counts = {

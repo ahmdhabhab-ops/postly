@@ -21,6 +21,12 @@ details, the AI suggests them and lists them as assumptions. The owner's website
 Meta Pixel, amount of content); problems are shown on the campaign and given to the assistant, with a pointer to `WEBSITE_HELP_NAME` /
 `WEBSITE_HELP_URL` (default Hostbotics). "Copy plan" lets the client create the ad manually until the Meta integration exists.
 
+## Choosing the platform, and taking the plan with you
+Before any draft, the client can ask "Where should you advertise?": the AI ranks Instagram, Facebook, Google, TikTok and ChatGPT Ads for the
+business (fit, why, budget share, first step) and the client chooses. The chat assistant follows the same advice and does not draft until a
+platform is chosen. A plan opens in a full window (View full plan) with Download Excel (.xlsx with a step-by-step "launch manually" sheet),
+Print / Save as PDF and Copy.
+
 ## Deploy (Dokploy)
 Compose path `./docker-compose.yml`; put the variables from `.env.example` in the Environment tab
 (`DB_PASSWORD` is required). Domains tab: service `web`, port `3000`.

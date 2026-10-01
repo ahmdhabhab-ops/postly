@@ -13,6 +13,8 @@ import { assistantReply, detectCampaignRequest, buildAssistantContext } from './
 import { fetchPublicPage, parsePublicUrl, FetchBlockedError } from './safefetch.js';
 import { analyzeCompetitor, buildStats, writeReport, discoverCompetitors } from './insights.js';
 import { extractPage } from './safefetch.js';
+import { buildPlanWorkbook, safeFilename } from './export.js';
+import { generateChannelAdvice } from './advice.js';
 import { generateBrief, siteSignals, websiteNotes, sanitizeBrief, classifyFetchError } from './brief.js';
 
 const EMAIL = /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/;
@@ -128,7 +130,7 @@ export function createApp(cfg, { pool, wa = createWhatsAppClient(cfg.whatsapp), 
   async function meResponse(userId) {
     const u = (await pool.query('select id,email,first_name,last_name,phone from users where id=$1', [userId])).rows[0];
     const business = (await pool.query('select * from businesses where user_id=$1', [userId])).rows[0] ?? null;
-    if (business) { delete business.site_text; delete business.last_discovery_at; delete business.site_fetched_at; delete business.site_signals; } // internal cache of the user's own site text
+    if (business) { delete business.site_text; delete business.last_discovery_at; delete business.site_fetched_at; delete business.site_signals; delete business.channel_advice; delete business.channel_advice_ai; delete business.channel_advice_at; } // internal cache of the user's own site text
     return { user: { id: u.id, email: u.email, firstName: u.first_name, lastName: u.last_name, phone: u.phone, canSendWhatsApp: isAdmin(u.email) }, business, help: { name: cfg.helpName, url: cfg.helpUrl } };
   }
   const isAdmin = (email) => cfg.adminEmails.includes(String(email).toLowerCase());
@@ -174,6 +176,37 @@ export function createApp(cfg, { pool, wa = createWhatsAppClient(cfg.whatsapp), 
     const row = (await pool.query('update campaigns set brief=$2 where id=$1 returning *', [c.id, JSON.stringify(brief)])).rows[0];
     res.json({ campaign: campaignOut(row, business), ai });
   }));
+  // Excel download of the full plan (cookie-authenticated GET; opens in Excel/Numbers/Sheets)
+  api.get('/campaigns/:id/plan.xlsx', requireUser, writeLimiter, wrap(async (req, res) => {
+    if (!/^[0-9a-f-]{36}$/.test(req.params.id)) return res.status(404).json({ error: 'Not found' });
+    const c = (await pool.query('select * from campaigns where id=$1 and user_id=$2', [req.params.id, req.user.id])).rows[0];
+    if (!c) return res.status(404).json({ error: 'Not found' });
+    const business = (await pool.query('select * from businesses where user_id=$1', [req.user.id])).rows[0];
+    const buf = await buildPlanWorkbook({ campaign: c, brief: briefOf(c), business, notes: notesFor(business, c.platform) });
+    res.set({
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': `attachment; filename="${safeFilename(c.title)}-plan.xlsx"`,
+      'Cache-Control': 'no-store',
+    });
+    res.send(buf);
+  }));
+
+  // --- where should the business advertise? ---
+  api.get('/advice/channels', requireUser, wrap(async (req, res) => {
+    const b = (await pool.query('select * from businesses where user_id=$1', [req.user.id])).rows[0];
+    const advice = adviceOf(b);
+    res.json({ advice: advice.length ? advice : null, ai: Boolean(b?.channel_advice_ai), at: b?.channel_advice_at ?? null });
+  }));
+  api.post('/advice/channels', requireUser, aiLimiter, wrap(async (req, res) => {
+    const business = (await pool.query('select * from businesses where user_id=$1', [req.user.id])).rows[0];
+    await refreshSiteText(req.user.id, business);
+    const comps = (await pool.query('select name, market from competitors where user_id=$1 order by created_at limit 6', [req.user.id])).rows;
+    const { advice, ai } = await generateChannelAdvice({ cfg, business, competitors: comps, notes: notesFor(business), fetchImpl });
+    await pool.query('update businesses set channel_advice=$2, channel_advice_ai=$3, channel_advice_at=now() where user_id=$1', [req.user.id, JSON.stringify(advice), ai]);
+    await log(req.user.id, 'Recommended where to advertise');
+    res.json({ advice, ai, at: new Date().toISOString() });
+  }));
+
   api.delete('/campaigns/:id', requireUser, writeLimiter, wrap(async (req, res) => {
     if (!/^[0-9a-f-]{36}$/.test(req.params.id)) return res.status(404).json({ error: 'Not found' });
     const r = await pool.query("delete from campaigns where id=$1 and user_id=$2 and status in ('pending','draft')", [req.params.id, req.user.id]);
@@ -253,7 +286,7 @@ export function createApp(cfg, { pool, wa = createWhatsAppClient(cfg.whatsapp), 
       await log(req.user.id, `Drafted "${campaign.title}" for your approval`);
     }
     const camps = await pool.query('select title, platform, status, budget_per_day, duration_days from campaigns where user_id=$1 order by created_at desc limit 8', [req.user.id]);
-    const context = buildAssistantContext({ business, competitors: comps, campaigns: camps.rows, websiteNotes: notesFor(business) });
+    const context = buildAssistantContext({ business, competitors: comps, campaigns: camps.rows, websiteNotes: notesFor(business), advice: adviceOf(business) });
     const reply = await assistantReply({ cfg, context, history, text, campaign, reused, fetchImpl });
     await pool.query('insert into chat_messages(user_id, role, content) values ($1,$2,$3), ($1,$4,$5)', [req.user.id, 'user', text, 'assistant', reply]);
     res.json({ reply, campaign: campaign ? campaignOut(campaign, business) : null });
@@ -279,6 +312,7 @@ export function createApp(cfg, { pool, wa = createWhatsAppClient(cfg.whatsapp), 
   }
   const parseSignals = (b) => { try { return b?.site_signals ? JSON.parse(b.site_signals) : null; } catch { return null; } };
   const notesFor = (b, platform) => websiteNotes({ business: b, signals: parseSignals(b), cfg, platform });
+  const adviceOf = (b) => { try { return b?.channel_advice ? JSON.parse(b.channel_advice) : []; } catch { return []; } };
   const briefOf = (row) => { try { return row.brief ? JSON.parse(row.brief) : null; } catch { return null; } };
   const campaignOut = (row, b) => { const { brief, ...rest } = row; return { ...rest, brief: briefOf(row), website_notes: b ? notesFor(b, row.platform) : [] }; };
 
