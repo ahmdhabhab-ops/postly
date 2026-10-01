@@ -175,3 +175,13 @@ test('webhook handshake and HMAC signature', async () => {
   assert.equal((await post({ 'x-hub-signature-256': 'sha256=00' })).status, 401);
   assert.equal((await post({})).status, 401);
 });
+
+test('without an AI key, the rule-based fallback understands Arabic-in-Latin requests too', async () => {
+  const c = client();
+  await reg(c, 'franco@x.com');
+  for (const [msg, platform] of [['3mele el ads campain lal meta', 'Instagram + Facebook'], ['sawwi campaign instagram', 'Instagram'], ['esna3 e3lan 3ala google', 'Google']]) {
+    const r = await c.post('/api/chat', { message: msg });
+    assert.equal(r.json.campaign?.platform, platform, msg);
+  }
+  assert.equal((await c.post('/api/chat', { message: 'hello there' })).json.campaign, null);
+});

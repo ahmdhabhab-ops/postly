@@ -10,6 +10,8 @@ const cfg = { trustProxyHops: 0, sessionDays: 1, adminEmails: [], adminApiKey: '
   whatsapp: {}, whatsappEnabled: false, webhookEnabled: false };
 
 let pool, server, base, llmCalls, pageHtml;
+let queue = [];
+const tool = (platform) => ({ stop_reason: 'tool_use', content: [{ type: 'tool_use', id: 'tu_1', name: 'create_campaign_draft', input: { platform } }] });
 before(async () => {
   pool = createPool(DB);
   await migrate(pool, { retries: 2, delayMs: 200 });
@@ -17,7 +19,7 @@ before(async () => {
   llmCalls = [];
   const fakeLLM = async (_url, opts) => {
     llmCalls.push(JSON.parse(opts.body));
-    return new Response(JSON.stringify({ content: [{ type: 'text', text: 'Positioning: premium.' }] }), { status: 200 });
+    return new Response(JSON.stringify(queue.shift() ?? { content: [{ type: 'text', text: 'Positioning: premium.' }] }), { status: 200 });
   };
   server = createApp(cfg, { pool, fetchImpl: fakeLLM, fetchPage: async () => pageHtml }).listen(0);
   base = `http://127.0.0.1:${server.address().port}`;
@@ -102,7 +104,9 @@ test('competitors: capped at 10', async () => {
 
 test('reports use only DB numbers and are saved per user', async () => {
   const a = await signup('ra@y.com'); const b = await signup('rb@y.com');
+  queue = [tool('Instagram'), { content: [{ type: 'text', text: '{}' }] }, { content: [{ type: 'text', text: 'Done' }] }];
   await a.post('/api/chat', { message: 'Create an Instagram campaign for me.' });
+  queue = [];
   const r = await a.post('/api/reports');
   assert.equal(r.status, 201);
   const sent = llmCalls.at(-1);

@@ -9,7 +9,7 @@ import {
   hashPassword, verifyPassword, createSession, setSessionCookie, clearSessionCookie,
   destroySession, sessionLoader, requireUser, csrfGuard, currentTokenHash,
 } from './auth.js';
-import { assistantReply, detectCampaignRequest, buildAssistantContext } from './assistant.js';
+import { assistantReply, draftFor, buildAssistantContext } from './assistant.js';
 import { fetchPublicPage, parsePublicUrl, FetchBlockedError } from './safefetch.js';
 import { analyzeCompetitor, buildStats, writeReport, discoverCompetitors } from './insights.js';
 import { extractPage } from './safefetch.js';
@@ -279,28 +279,27 @@ export function createApp(cfg, { pool, wa = createWhatsAppClient(cfg.whatsapp), 
     )).rows;
     await refreshSiteText(req.user.id, business);
     const comps = (await pool.query('select name, url, market, reason, analysis from competitors where user_id=$1 order by created_at limit 8', [req.user.id])).rows;
-    const draft = detectCampaignRequest(text, business);
-    let campaign = null;
-    let reused = false;
-    if (draft) {
-      campaign = (await pool.query(
+    // Really creates the draft (or reuses a pending one for the same platform) and attaches a full plan.
+    const createDraft = async (platformInput) => {
+      const draft = draftFor(platformInput, business);
+      if (!draft) return null;
+      const existing = (await pool.query(
         "select * from campaigns where user_id=$1 and platform=$2 and status='pending' order by created_at desc limit 1",
-        [req.user.id, draft.platform])).rows[0] ?? null;
-      reused = Boolean(campaign);
-    }
-    if (draft && !campaign) {
-      campaign = (await pool.query(
+        [req.user.id, draft.platform])).rows[0];
+      if (existing) return { campaign: existing, reused: true };
+      let row = (await pool.query(
         `insert into campaigns(id,user_id,title,platform,status,budget_per_day,duration_days,audience,expected_leads)
          values ($1,$2,$3,$4,'pending',$5,$6,$7,$8) returning *`,
         [crypto.randomUUID(), req.user.id, draft.title, draft.platform, draft.budget_per_day, draft.duration_days, draft.audience, draft.expected_leads],
       )).rows[0];
-      const { brief } = await generateBrief({ cfg, business, campaign, competitors: comps, notes: notesFor(business, campaign.platform), fetchImpl });
-      campaign = (await pool.query('update campaigns set brief=$2 where id=$1 returning *', [campaign.id, JSON.stringify(brief)])).rows[0];
-      await log(req.user.id, `Drafted "${campaign.title}" for your approval`);
-    }
+      const { brief } = await generateBrief({ cfg, business, campaign: row, competitors: comps, notes: notesFor(business, row.platform), fetchImpl });
+      row = (await pool.query('update campaigns set brief=$2 where id=$1 returning *', [row.id, JSON.stringify(brief)])).rows[0];
+      await log(req.user.id, `Drafted "${row.title}" for your approval`);
+      return { campaign: row, reused: false };
+    };
     const camps = await pool.query('select title, platform, status, budget_per_day, duration_days from campaigns where user_id=$1 order by created_at desc limit 8', [req.user.id]);
     const context = buildAssistantContext({ business, competitors: comps, campaigns: camps.rows, websiteNotes: notesFor(business), advice: adviceOf(business) });
-    const reply = await assistantReply({ cfg, context, history, text, campaign, reused, fetchImpl });
+    const { reply, campaign } = await assistantReply({ cfg, context, history, text, createDraft, fetchImpl });
     await pool.query('insert into chat_messages(user_id, role, content) values ($1,$2,$3), ($1,$4,$5)', [req.user.id, 'user', text, 'assistant', reply]);
     res.json({ reply, campaign: campaign ? campaignOut(campaign, business) : null });
   }));

@@ -27,6 +27,11 @@ business (fit, why, budget share, first step) and the client chooses. The chat a
 platform is chosen. A plan opens in a full window (View full plan) with Download Excel (.xlsx with a step-by-step "launch manually" sheet),
 Print / Save as PDF and Copy.
 
+## How the assistant creates campaigns
+With an AI key the assistant has a real tool, `create_campaign_draft`. It calls the tool as soon as the user asks for a campaign in any
+language (including Arabic written in Latin letters, "meta" = Instagram + Facebook); the server creates or reuses the draft and returns
+the result to the model, so the reply always matches reality. Without a key a rule-based fallback handles the common phrasings.
+
 ## Deploy (Dokploy)
 Compose path `./docker-compose.yml`; put the variables from `.env.example` in the Environment tab
 (`DB_PASSWORD` is required). Domains tab: service `web`, port `3000`.

@@ -32,6 +32,7 @@ function client() {
   return { get: (p) => call('GET', p), post: (p, b = {}) => call('POST', p, b), put: (p, b) => call('PUT', p, b) };
 }
 const signup = async (email) => { const c = client(); await c.post('/api/auth/register', { email, password: 'correct horse 1', businessName: 'Einvite' }); return c; };
+const tool = (platform) => ({ stop_reason: 'tool_use', content: [{ type: 'tool_use', id: 'tu_1', name: 'create_campaign_draft', input: { platform } }] });
 const txt = (t) => ({ stop_reason: 'end_turn', content: [{ type: 'text', text: t }] });
 
 const ADVICE = [
@@ -87,7 +88,7 @@ test('the chat assistant is given the channel advice and told not to draft befor
   const r = await c.post('/api/chat', { message: 'I want to run ads, where should I start?' });
   assert.equal(r.json.campaign, null);                               // nothing drafted
   assert.match(calls[0].system, /Channel advice already given[\s\S]*Instagram: Best fit \(60% of budget\)/);
-  assert.match(calls[0].system, /Do not draft a campaign until a platform is chosen/);
+  assert.match(calls[0].system, /do not create a draft until a platform is chosen/);
   assert.match(calls[0].system, /Later" or "Skip for now"/);
 });
 
@@ -109,7 +110,7 @@ test('Excel export: valid workbook, plan + steps sheets, formulas neutralised, o
   assert.ok(launchSteps('Google')[0].includes('Google Ads'));
 
   const owner = await signup('xl1@z.com');
-  script = [txt('{}'), txt('ok')];
+  script = [tool('Instagram'), txt('{}'), txt('Done')];
   const chat = await owner.post('/api/chat', { message: 'Create an Instagram campaign for me.' });
   const id = chat.json.campaign.id;
   const dl = await owner.get(`/api/campaigns/${id}/plan.xlsx`);

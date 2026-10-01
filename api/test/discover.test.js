@@ -29,6 +29,7 @@ function client() {
   return { get: (p) => call('GET', p), post: (p, b = {}) => call('POST', p, b), put: (p, b) => call('PUT', p, b), del: (p) => call('DELETE', p, {}) };
 }
 const signup = async (email) => { const c = client(); await c.post('/api/auth/register', { email, password: 'correct horse 1', businessName: 'Bean Co' }); return c; };
+const tool = (platform) => ({ stop_reason: 'tool_use', content: [{ type: 'tool_use', id: 'tu_1', name: 'create_campaign_draft', input: { platform } }] });
 const text = (t) => ({ stop_reason: 'end_turn', content: [{ type: 'text', text: t }] });
 
 test('business profile stores market, price and differentiator; internal site text is never returned', async () => {
@@ -207,7 +208,7 @@ test('chat gives the model the full business context and enough token budget', a
   const c = await signup('ctx@z.com');
   await c.put('/api/business', { website: 'beancoffee.example', description: 'Specialty coffee beans', usp: 'Roasted daily', price_range: '$$', country: 'Lebanon | UAE', goal: 'Increase sales' });
   await c.post('/api/competitors', { name: 'Riverstone Cafe', url: 'riverstone.example' });
-  script = [text('Drafted.')];
+  script = [tool('Instagram'), text('{}'), text('Drafted.')];
   await c.post('/api/chat', { message: 'Create an Instagram campaign for me.' });
   calls = [];
   script = [text('Here is a plan.')];
@@ -238,13 +239,18 @@ test('effort is only sent to models that support it', async () => {
 
 test('asking twice for the same platform reuses the pending draft; drafts can be discarded, live ones cannot', async () => {
   const c = await signup('dup@z.com');
-  script = [text('Drafted.'), text('Already there.')];
+  script = [tool('Instagram'), text('{}'), text('Drafted.')];
   const a = await c.post('/api/chat', { message: 'Create an Instagram campaign for me.' });
+  script = [tool('Instagram'), text('Already there.')];
+  calls = [];
   const b = await c.post('/api/chat', { message: 'Create an Instagram campaign to compete with X.' });
   assert.equal(b.json.campaign.id, a.json.campaign.id);
   assert.equal((await c.get('/api/campaigns')).json.campaigns.length, 1);
-  assert.match(calls.at(-1).system, /already exists and awaits approval/);
+  const toolResult = calls.at(-1).messages.at(-1).content[0];
+  assert.equal(toolResult.type, 'tool_result');
+  assert.match(toolResult.content, /already_exists/);
 
+  script = [tool('Facebook'), text('{}'), text('ok')];
   await c.post('/api/chat', { message: 'Create a Facebook campaign for me.' });
   assert.equal((await c.get('/api/campaigns')).json.campaigns.length, 2);
 
@@ -255,4 +261,43 @@ test('asking twice for the same platform reuses the pending draft; drafts can be
   assert.equal((await other.del(`/api/campaigns/${fb.id}`)).status, 404);       // not yours
   await c.post(`/api/campaigns/${fb.id}/approve`);
   assert.equal((await c.del(`/api/campaigns/${fb.id}`)).status, 404);           // live: cannot discard
+});
+
+
+test('"3mele el ads campain lal meta": the model calls the tool, a real draft exists, and the reply matches reality', async () => {
+  const c = await signup('meta@z.com');
+  calls = [];
+  script = [tool('Meta (Instagram + Facebook)'), text('{}'), text('Tamem, draft la Meta jehez bel Campaigns.')];
+  const r = await c.post('/api/chat', { message: '3mele el ads campain lal meta' });
+  assert.equal(r.json.campaign.platform, 'Instagram + Facebook');
+  assert.equal(r.json.campaign.status, 'pending');
+  assert.equal((await c.get('/api/campaigns')).json.campaigns.length, 1);
+  // the model got tools and clear instructions to act first, in any language
+  const first = calls[0];
+  assert.equal(first.tools[0].name, 'create_campaign_draft');
+  assert.ok(first.tools[0].input_schema.properties.platform.enum.includes('Meta (Instagram + Facebook)'));
+  assert.match(first.system, /ACT, DO NOT INTERROGATE/);
+  assert.match(first.system, /NEVER say a draft or campaign was created[\s\S]*unless create_campaign_draft returned/);
+  // the tool result sent back to the model says what really happened
+  const tr = calls.at(-1).messages.at(-1).content[0];
+  assert.match(tr.content, /"status":"created"/);
+});
+
+test('if the model claims a draft without calling the tool, nothing is created and no campaign is returned', async () => {
+  const c = await signup('claim@z.com');
+  script = [text('Tamem, hayda draft campaign la Meta.')];
+  const r = await c.post('/api/chat', { message: 'make me ads' });
+  assert.equal(r.json.campaign, null);
+  assert.deepEqual((await c.get('/api/campaigns')).json.campaigns, []);
+});
+
+test('unknown platform from the tool is reported back as an error, not turned into a draft', async () => {
+  const c = await signup('snap@z.com');
+  calls = [];
+  script = [tool('Snapchat'), text('Which platform: Instagram, Facebook, Google, TikTok?')];
+  const r = await c.post('/api/chat', { message: 'make a snapchat campaign' });
+  assert.equal(r.json.campaign, null);
+  const tr = calls.at(-1).messages.at(-1).content[0];
+  assert.equal(tr.is_error, true);
+  assert.deepEqual((await c.get('/api/campaigns')).json.campaigns, []);
 });

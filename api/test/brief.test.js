@@ -40,6 +40,7 @@ function client() {
   return { get: (p) => call('GET', p), post: (p, b = {}) => call('POST', p, b), put: (p, b) => call('PUT', p, b) };
 }
 const signup = async (email) => { const c = client(); await c.post('/api/auth/register', { email, password: 'correct horse 1', businessName: 'Einvite' }); return c; };
+const tool = (platform) => ({ stop_reason: 'tool_use', content: [{ type: 'tool_use', id: 'tu_1', name: 'create_campaign_draft', input: { platform } }] });
 const txt = (t) => ({ stop_reason: 'end_turn', content: [{ type: 'text', text: t }] });
 
 test('siteSignals reads what ads need from the page HTML', () => {
@@ -119,7 +120,7 @@ test('chat creates a campaign with a full brief and the website check; plan can 
   const c = await signup('b1@z.com');
   pageHtml = '<html><body>Wedding invites. We are small.</body></html>';          // no https meta/viewport/pixel/contact
   await c.put('/api/business', { website: 'einvite.example', description: 'Digital wedding invitations', country: 'Lebanon', usp: 'Mobile friendly' });
-  calls = []; script = [txt(JSON.stringify(GOOD)), txt('Done, see the plan.')];
+  calls = []; script = [tool('Instagram'), txt(JSON.stringify(GOOD)), txt('Done, see the plan.')];
   const r = await c.post('/api/chat', { message: 'Create an Instagram campaign for me.' });
   assert.equal(r.status, 200);
   const camp = r.json.campaign;
@@ -144,7 +145,7 @@ test('chat creates a campaign with a full brief and the website check; plan can 
 
 test('with no website at all, the client is told and pointed to the partner', async () => {
   const c = await signup('b3@z.com');
-  script = [];
+  script = [tool('Facebook'), txt('{}'), txt('ok')];
   const r = await c.post('/api/chat', { message: 'Create a Facebook campaign for me.' });
   assert.match(r.json.campaign.website_notes[0], /do not have a website yet/);
   assert.match(r.json.campaign.website_notes[0], /hostbotics\.net/);
