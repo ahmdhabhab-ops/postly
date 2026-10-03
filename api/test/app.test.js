@@ -185,3 +185,11 @@ test('without an AI key, the rule-based fallback understands Arabic-in-Latin req
   }
   assert.equal((await c.post('/api/chat', { message: 'hello there' })).json.campaign, null);
 });
+
+test('without an AI key, "all platforms" creates a draft for each of Instagram, Facebook and Google', async () => {
+  const c = client();
+  await reg(c, 'allp@x.com');
+  const r = await c.post('/api/chat', { message: '3mele ads campaign 3ala kel el platforms mish bass insta' });
+  assert.equal(r.json.created, 3);
+  assert.deepEqual((await c.get('/api/campaigns')).json.campaigns.map((x) => x.platform).sort(), ['Facebook', 'Google', 'Instagram']);
+});

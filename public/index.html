@@ -589,6 +589,10 @@ input:focus,select:focus,textarea:focus{outline:none; border-color:var(--violet)
   body.printing-plan .plan-bar, body.printing-plan .no-print{display:none !important;}
   body.printing-plan .plan-sheet *{color:#000 !important; background:transparent !important; border-color:#bbb !important;}
 }
+.chip-pick{display:flex; flex-wrap:wrap; gap:8px;}
+.pick{padding:8px 14px; border:1px solid var(--border-strong); border-radius:100px; font-size:13.5px; color:var(--text-dim); transition:all .15s ease;}
+.pick:hover{border-color:var(--violet);}
+.pick.on{border-color:var(--violet); background:rgba(245,181,68,0.14); color:var(--text);}
 .form-error{color:var(--red); font-size:13.5px; margin:0 0 14px; min-height:0;}
 .form-error:empty{display:none;}
 .sample-note{font-size:12.5px; color:var(--text-faint); border:1px dashed var(--border-strong); border-radius:var(--radius-sm); padding:9px 14px; margin-bottom:22px;}
@@ -1012,11 +1016,11 @@ input:focus,select:focus,textarea:focus{outline:none; border-color:var(--violet)
 
     <div class="onb-step active" data-step="1">
       <h2>Tell us about your business.</h2>
-      <p class="hint">This helps your AI team understand who you are.</p>
+      <p class="hint">Only the business name is needed. Skip anything you do not know yet: your AI team will suggest it for you.</p>
       <div class="field-group"><label>Business name</label><input type="text" id="onbBizName"></div>
       <div class="field-row2">
-        <div class="field-group"><label>Business type</label><select id="obType"><option>Local business</option><option>E-commerce</option><option>Service provider</option><option>Other</option></select></div>
-        <div class="field-group"><label>Industry</label><select id="obIndustry"><option>Food & beverage</option><option>Retail</option><option>Health & fitness</option><option>Professional services</option><option>Other</option></select></div>
+        <div class="field-group"><label>Business type</label><select id="obType"><option value="">Choose…</option><option>Local business</option><option>E-commerce</option><option>Service provider</option><option>Online business</option><option>Other</option></select></div>
+        <div class="field-group"><label>Industry</label><select id="obIndustry"><option value="">Choose…</option><option>Food & beverage</option><option>Retail</option><option>Events & weddings</option><option>Beauty & wellness</option><option>Health & fitness</option><option>Technology & web</option><option>Real estate</option><option>Education</option><option>Professional services</option><option>Other</option></select></div>
       </div>
       <div class="field-row2">
         <div class="field-group"><label>Website (optional)</label><input type="text" id="obWebsite" placeholder="yourbusiness.com"></div>
@@ -1028,9 +1032,9 @@ input:focus,select:focus,textarea:focus{outline:none; border-color:var(--violet)
 
     <div class="onb-step" data-step="2">
       <h2>What do you want to achieve?</h2>
-      <p class="hint">Pick the goal that matters most right now.</p>
+      <p class="hint">Pick the goal that matters most right now, or tell us you are not sure.</p>
       <div class="choice-grid" id="goalGrid">
-        <div class="choice-card selected" onclick="selectChoice(this,'goalGrid')">Get more customers</div>
+        <div class="choice-card" onclick="selectChoice(this,'goalGrid')">Get more customers</div>
         <div class="choice-card" onclick="selectChoice(this,'goalGrid')">Increase sales</div>
         <div class="choice-card" onclick="selectChoice(this,'goalGrid')">Generate leads</div>
         <div class="choice-card" onclick="selectChoice(this,'goalGrid')">Grow on social media</div>
@@ -1038,6 +1042,7 @@ input:focus,select:focus,textarea:focus{outline:none; border-color:var(--violet)
         <div class="choice-card" onclick="selectChoice(this,'goalGrid')">Build my brand</div>
         <div class="choice-card" onclick="selectChoice(this,'goalGrid')">Get more bookings</div>
         <div class="choice-card" onclick="selectChoice(this,'goalGrid')">Get discovered in AI Search</div>
+        <div class="choice-card" onclick="selectChoice(this,'goalGrid')">Not sure, help me decide</div>
       </div>
       <div class="onb-nav"><button class="btn btn-ghost" onclick="onbBack(2)">Back</button><button class="btn btn-primary" onclick="onbNext(2)">Continue</button></div>
     </div>
@@ -1046,8 +1051,8 @@ input:focus,select:focus,textarea:focus{outline:none; border-color:var(--violet)
       <h2>Who are your customers?</h2>
       <p class="hint">A rough picture is enough — your AI team will refine it.</p>
       <div class="field-row2">
-        <div class="field-group"><label>Age range</label><select id="obAge"><option>18–24</option><option selected>25–34</option><option>35–44</option><option>45–54</option><option>55+</option></select></div>
-        <div class="field-group"><label>Customer type</label><select id="obCustType"><option>Individuals</option><option>Businesses</option><option>Both</option></select></div>
+        <div class="field-group" style="grid-column:1/-1;"><label>Which age groups buy from you? (pick all that apply)</label><div class="chip-pick" id="obAges"></div></div>
+        <div class="field-group"><label>Customer type</label><select id="obCustType"><option value="">Not sure</option><option>Individuals</option><option>Businesses</option><option>Both</option></select></div>
       </div>
       <div class="field-group"><label>Location</label><input type="text" id="obCustLoc" placeholder="Where are your customers based?"></div>
       <div class="field-group"><label>Interests</label><input type="text" id="obInterests" placeholder="e.g. coffee, wellness, sustainability"></div>
@@ -1059,10 +1064,11 @@ input:focus,select:focus,textarea:focus{outline:none; border-color:var(--violet)
       <p class="hint">Postly will build a plan that fits — you can change this anytime.</p>
       <div class="choice-grid" id="budgetGrid" style="grid-template-columns:1fr;">
         <div class="choice-card" onclick="selectChoice(this,'budgetGrid')">Under $100</div>
-        <div class="choice-card selected" onclick="selectChoice(this,'budgetGrid')">$100 – $300</div>
+        <div class="choice-card" onclick="selectChoice(this,'budgetGrid')">$100 – $300</div>
         <div class="choice-card" onclick="selectChoice(this,'budgetGrid')">$300 – $500</div>
         <div class="choice-card" onclick="selectChoice(this,'budgetGrid')">$500 – $1,000</div>
         <div class="choice-card" onclick="selectChoice(this,'budgetGrid')">$1,000+</div>
+        <div class="choice-card" onclick="selectChoice(this,'budgetGrid')">Not sure yet</div>
       </div>
       <div class="onb-nav"><button class="btn btn-ghost" onclick="onbBack(4)">Back</button><button class="btn btn-primary" onclick="onbNext(4)">Continue</button></div>
     </div>
@@ -1190,6 +1196,7 @@ input:focus,select:focus,textarea:focus{outline:none; border-color:var(--violet)
           <div class="platform-picker">
             <button class="btn btn-primary" onclick="togglePlatformMenu(event)">+ New Campaign</button>
             <div class="platform-menu" id="platformMenu">
+              <button type="button" class="platform-option" onclick="createForAll()"><span class="po-icon">All</span>All recommended platforms</button>
               <button type="button" class="platform-option" onclick="chooseForMe()"><span class="po-icon">AI</span>Not sure? Help me choose</button>
               <div class="pm-label">Which platform?</div>
               <button type="button" class="platform-option" onclick="pickCampaignPlatform('Instagram')"><span class="po-icon">IG</span>Instagram</button>
@@ -1383,6 +1390,26 @@ input:focus,select:focus,textarea:focus{outline:none; border-color:var(--violet)
           <div class="channel-row"><div class="channel-name"><span class="ch-icon"><svg class="i" style="width:15px;height:15px;"><use href="#i-orbit"/></svg></span><div>Google Business Profile<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" disabled title="Coming soon" onclick="connectChannel(this,\'Google Business Profile\')">Coming soon</button></div>
         <div class="channel-row"><div class="channel-name"><span class="ch-icon" style="font-size:9px;">GPT</span><div>ChatGPT Ads<div class="ch-sub" style="display:none;"></div></div></div><button class="btn btn-ghost btn-sm" disabled title="Coming soon" onclick="connectChannel(this,\'ChatGPT Ads\')">Coming soon</button></div>
         </div>
+        <div class="panel" id="customersPanel">
+          <h3>Your business, customers and budget</h3>
+          <p style="color:var(--text-dim); font-size:13.5px; margin-bottom:16px;">Used to plan your ads. Leave anything you do not know empty: your AI team will use broad settings and suggest options.</p>
+          <div class="field-row2">
+            <div class="field-group"><label>Business type</label><select id="stType"></select></div>
+            <div class="field-group"><label>Industry</label><select id="stIndustry"></select></div>
+          </div>
+          <div class="field-group"><label>Which age groups buy from you? (pick all that apply)</label><div class="chip-pick" id="stAges"></div></div>
+          <div class="field-row2">
+            <div class="field-group"><label>Customer type</label><select id="stCustType"><option value="">Not sure</option><option>Individuals</option><option>Businesses</option><option>Both</option></select></div>
+            <div class="field-group"><label>Where are your customers?</label><input type="text" id="stCustLoc" maxlength="120" placeholder="e.g. Beirut, all of Lebanon, worldwide"></div>
+          </div>
+          <div class="field-group"><label>Interests of your customers</label><input type="text" id="stInterests" maxlength="300" placeholder="e.g. weddings, coffee, fitness (optional)"></div>
+          <div class="field-row2">
+            <div class="field-group"><label>Main goal</label><select id="stGoal"></select></div>
+            <div class="field-group"><label>Monthly marketing budget</label><select id="stBudget"></select></div>
+          </div>
+          <p class="form-error" id="stError" role="alert"></p>
+          <button class="btn btn-primary btn-sm" id="stBtn" onclick="saveCustomers()">Save</button>
+        </div>
         <div class="panel" id="accountPanel">
           <h3>Account</h3>
           <p style="color:var(--text-dim); font-size:14px; margin-bottom:16px;">Signed in as <strong id="accountEmail"></strong></p>
@@ -1549,6 +1576,62 @@ function onbBack(step){
   document.querySelector('.onb-step[data-step="'+onbStep+'"]').classList.add('active');
   updateOnbProgress();
 }
+const AGE_OPTIONS = ['All ages','18–24','25–34','35–44','45–54','55+','Not sure'];
+const GOAL_OPTIONS = ['Get more customers','Increase sales','Generate leads','Grow on social media','Launch a product','Build my brand','Get more bookings','Get discovered in AI Search','Not sure, help me decide'];
+const BUDGET_OPTIONS = ['Under $100','$100 – $300','$300 – $500','$500 – $1,000','$1,000+','Not sure yet'];
+const TYPE_OPTIONS = ['Local business','E-commerce','Service provider','Online business','Other'];
+const INDUSTRY_OPTIONS = ['Food & beverage','Retail','Events & weddings','Beauty & wellness','Health & fitness','Technology & web','Real estate','Education','Professional services','Other'];
+/* Multi-select chips. "All ages" and "Not sure" cannot be combined with specific ranges. */
+function makeChipGroup(el, options, exclusive){
+  const state = new Set();
+  const render = ()=>{
+    el.innerHTML = '';
+    options.forEach(o=>{
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'pick' + (state.has(o) ? ' on' : '');
+      b.setAttribute('aria-pressed', state.has(o) ? 'true' : 'false'); b.textContent = o;
+      b.addEventListener('click', ()=>{
+        if(state.has(o)) state.delete(o);
+        else { if(exclusive.includes(o)) state.clear(); else exclusive.forEach(x=>state.delete(x)); state.add(o); }
+        render();
+      });
+      el.appendChild(b);
+    });
+  };
+  render();
+  return { get: ()=>options.filter(o=>state.has(o)).join(', '), set: (str)=>{ state.clear(); String(str || '').split(',').map(x=>x.trim()).filter(x=>options.includes(x)).forEach(x=>state.add(x)); render(); } };
+}
+const ageOnb = makeChipGroup($('obAges'), AGE_OPTIONS, ['All ages','Not sure']);
+const ageSet = makeChipGroup($('stAges'), AGE_OPTIONS, ['All ages','Not sure']);
+function fillSelect(el, options, value, emptyLabel){
+  el.innerHTML = '';
+  const e = document.createElement('option'); e.value = ''; e.textContent = emptyLabel; el.appendChild(e);
+  const list = value && !options.includes(value) ? [...options, value] : options;
+  list.forEach(o=>{ const x = document.createElement('option'); x.textContent = o; x.value = o; el.appendChild(x); });
+  el.value = value || '';
+}
+function fillCustomers(){
+  const b = (me && me.business) || {};
+  fillSelect($('stType'), TYPE_OPTIONS, b.type, 'Choose…');
+  fillSelect($('stIndustry'), INDUSTRY_OPTIONS, b.industry, 'Choose…');
+  fillSelect($('stGoal'), GOAL_OPTIONS, b.goal, 'Choose…');
+  fillSelect($('stBudget'), BUDGET_OPTIONS, b.budget, 'Choose…');
+  ageSet.set(b.customer_age);
+  $('stCustType').value = b.customer_type || '';
+  $('stCustLoc').value = b.customer_location || '';
+  $('stInterests').value = b.interests || '';
+}
+async function saveCustomers(){
+  setError('stError','');
+  busy($('stBtn'), true);
+  try{
+    me = await api('PUT','/business',{
+      type: $('stType').value, industry: $('stIndustry').value, goal: $('stGoal').value, budget: $('stBudget').value,
+      customer_age: ageSet.get(), customer_type: $('stCustType').value, customer_location: $('stCustLoc').value, interests: $('stInterests').value
+    });
+    showToast('Saved. New plans will use this.');
+  }catch(e){ setError('stError', e.message); }
+  busy($('stBtn'), false);
+}
 function selectedText(groupId){
   const el = $(groupId).querySelector('.choice-card.selected');
   return el ? el.textContent.trim() : '';
@@ -1561,7 +1644,7 @@ async function onbFinish(){
       name: $('onbBizName').value, type: $('obType').value, industry: $('obIndustry').value,
       website: $('obWebsite').value, location: $('obLocation').value, description: $('obDesc').value,
       goal: selectedText('goalGrid'), budget: selectedText('budgetGrid'),
-      customer_age: $('obAge').value, customer_type: $('obCustType').value,
+      customer_age: ageOnb.get(), customer_type: $('obCustType').value,
       customer_location: $('obCustLoc').value, interests: $('obInterests').value,
       onboarded: true
     });
@@ -1585,6 +1668,7 @@ async function enterApp(){
   $('dashGreeting').textContent = 'Good morning, ' + first + '.';
   $('settingsBizName').value = b.name || '';
   $('settingsWebsite').value = b.website || '';
+  fillCustomers();
   $('accountEmail').textContent = (me && me.user.email) || '';
   $('waPanel').style.display = (me && me.user.canSendWhatsApp) ? 'block' : 'none';
   openScreen('app');
@@ -1830,6 +1914,12 @@ function renderAdvice(list, ai){
     btn.addEventListener('click', ()=>sendSuggest('Create a ' + x.platform.replace(' Ads','') + ' campaign for me.'));
     row.appendChild(left); row.appendChild(btn); box.appendChild(row);
   });
+  const rec = list.filter(x=>x.fit === 'Best fit' || x.fit === 'Good fit');
+  if(rec.length > 1){
+    const all = document.createElement('button'); all.className = 'btn btn-primary btn-sm'; all.style.marginTop = '12px';
+    all.textContent = 'Create campaigns for all ' + rec.length + ' recommended platforms';
+    all.addEventListener('click', createForAll); box.appendChild(all);
+  }
   if(ai === false){ const n = document.createElement('p'); n.className = 'empty-note'; n.style.marginTop = '10px'; n.textContent = 'General guidance: AI recommendations are not available right now.'; box.appendChild(n); }
 }
 async function loadAdvice(generate){
@@ -1843,6 +1933,10 @@ async function loadAdvice(generate){
     else if(r.advice) btn.textContent = 'Update recommendation';
   }catch(e){ setError('adviceError', e.message); if(generate) btn.textContent = 'Recommend for my business'; }
   if(generate) busy(btn, false);
+}
+function createForAll(){
+  $('platformMenu').classList.remove('open');
+  sendSuggest('Create campaigns on all the recommended platforms for me, not only Instagram.');
 }
 function chooseForMe(){
   $('platformMenu').classList.remove('open');
@@ -2013,7 +2107,7 @@ async function sendChat(){
   try{
     const r = await api('POST','/chat',{ message: text });
     addBubble('assistant', r.reply);
-    if(r.campaign){ showToast('Campaign drafted — awaiting your approval.'); refreshData(); }
+    if(r.campaign){ showToast(r.created > 1 ? r.created + ' campaigns drafted. They wait for your approval.' : 'Campaign drafted — awaiting your approval.'); refreshData(); }
   }catch(e){ addBubble('assistant', e.message); }
   input.disabled = false;
   input.focus();

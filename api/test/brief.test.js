@@ -171,3 +171,69 @@ test('change password: needs the current one, signs out other devices, old passw
   assert.equal((await client().post('/api/auth/login', { email: 'pw@z.com', password: 'brand new pass 2' })).status, 200);
   assert.equal((await client().post('/api/auth/password', { current: 'x', next: 'y' })).status, 401);
 });
+
+import { parseAges } from '../src/brief.js';
+import { monthlyBudget, draftFor } from '../src/assistant.js';
+
+test('ages: multi-select, all ages, open-ended and unknown are understood without inventing a range', () => {
+  assert.deepEqual(parseAges('25–34'), { known: true, min: 25, max: 34 });
+  assert.deepEqual(parseAges('18–24, 35–44'), { known: true, min: 18, max: 44 });
+  assert.deepEqual(parseAges('45–54, 55+'), { known: true, min: 45, max: 65 });
+  assert.deepEqual(parseAges('All ages'), { known: true, min: 18, max: 65 });
+  assert.equal(parseAges('Not sure').known, false);
+  assert.equal(parseAges('').known, false);
+  assert.equal(parseAges(undefined).known, false);
+  const unknown = fallbackBrief({ business: { name: 'X' }, campaign: { platform: 'Instagram' } });
+  assert.equal(unknown.audience.age_min, 18); assert.equal(unknown.audience.age_max, 65);
+  assert.match(unknown.audience.notes, /not told us/i);
+  assert.ok(unknown.questions.some((q) => /age groups/i.test(q)));
+});
+
+test('draft budgets follow the owner\'s monthly budget and the advice shares', () => {
+  assert.equal(monthlyBudget('Under $100'), 75);
+  assert.equal(monthlyBudget('$100 – $300'), 200);
+  assert.equal(monthlyBudget('$500 – $1,000'), 750);
+  assert.equal(monthlyBudget('$1,000+'), 1200);
+  assert.equal(monthlyBudget('Not sure yet'), null);
+  assert.equal(monthlyBudget(''), null);
+  // no budget given: platform defaults
+  assert.equal(draftFor('instagram', {}).budget_per_day, 20);
+  // small budget no longer gets $20/day
+  assert.equal(draftFor('instagram', { budget: 'Under $100' }).budget_per_day, 1);                       // 75*50%/30 = 1.25
+  assert.equal(draftFor('instagram', { budget: '$300 – $500' }, [], { count: 1 }).budget_per_day, 13);   // 400/30, whole budget
+  assert.equal(draftFor('instagram', { budget: '$300 – $500' }, [], { count: 4 }).budget_per_day, 3);    // split over 4 platforms
+  // several platforms together never add up to more than the monthly budget
+  const total = ['instagram', 'facebook', 'google'].reduce((n, p) => n + draftFor(p, { budget: '$300 – $500' }, [], { count: 3 }).budget_per_day, 0);
+  assert.ok(total * 30 <= 400 + 90, `3 platforms cost ${total * 30}/month`);
+  const advice = [{ platform: 'Instagram', budget_share: 60 }, { platform: 'Google', budget_share: 40 }, { platform: 'Facebook', budget_share: 0 }];
+  assert.equal(draftFor('instagram', { budget: '$500 – $1,000' }, advice).budget_per_day, 15);          // 750*60%/30
+  assert.equal(draftFor('google', { budget: '$500 – $1,000' }, advice).budget_per_day, 10);             // 750*40%/30
+  assert.equal(draftFor('meta', { budget: '$500 – $1,000' }, advice).budget_per_day, 15);               // Instagram+Facebook shares
+  // audience text never invents an age range
+  assert.match(draftFor('instagram', { customer_location: 'Beirut' }).audience, /Beirut, all ages/);
+  assert.match(draftFor('instagram', { customer_age: 'Not sure' }).audience, /all ages/);
+  assert.match(draftFor('instagram', { customer_age: '25–34, 35–44', country: 'Lebanon | UAE' }).audience, /Lebanon, 25–34, 35–44/);
+  assert.equal(draftFor('instagram', { goal: 'Not sure, help me decide' }).title, 'Get more customers — Instagram');
+});
+
+test('"ads on everything": the model may call the tool once per platform, all drafts exist, capped at 6', async () => {
+  const c = await signup('multi@z.com');
+  const many = (list) => ({ stop_reason: 'tool_use', content: list.map((p, i) => ({ type: 'tool_use', id: `t${i}`, name: 'create_campaign_draft', input: { platform: p } })) });
+  calls = [];
+  script = [many(['Instagram', 'Facebook', 'Google']), txt('{}'), txt('{}'), txt('{}'), txt('Three drafts are ready.')];
+  const r = await c.post('/api/chat', { message: 'kel el platforms, mish bass insta' });
+  assert.equal(r.status, 200);
+  assert.equal(r.json.created, 3);
+  const platforms = (await c.get('/api/campaigns')).json.campaigns.map((x) => x.platform).sort();
+  assert.deepEqual(platforms, ['Facebook', 'Google', 'Instagram']);
+  assert.match(calls[0].system, /MORE THAN ONE PLATFORM/);
+  const results = calls.at(-1).messages.at(-1).content;
+  assert.equal(results.length, 3);
+  assert.ok(results.every((x) => /"status":"created"/.test(x.content)));
+
+  const c2 = await signup('multi2@z.com');
+  script = [many(['Instagram', 'Facebook', 'Google', 'TikTok', 'ChatGPT Ads', 'Instagram + Facebook', 'Google']), ...Array(8).fill(txt('{}'))];
+  const r2 = await c2.post('/api/chat', { message: 'everything please' });
+  assert.ok(r2.json.created <= 6);
+  assert.ok((await c2.get('/api/campaigns')).json.campaigns.length <= 6);
+});

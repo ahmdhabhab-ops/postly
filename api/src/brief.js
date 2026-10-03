@@ -57,6 +57,17 @@ export function websiteNotes({ business: b = {}, signals, cfg, platform = '' }) 
   return notes;
 }
 
+// "18–24, 35–44" -> {min:18,max:44}; "All ages" -> 18-65; "55+" -> 55-65; nothing/"Not sure" -> known:false
+export function parseAges(text) {
+  const t = String(text ?? '');
+  if (/all ages/i.test(t)) return { known: true, min: 18, max: 65 };
+  const nums = [];
+  for (const m of t.matchAll(/(\d{2})\s*[–-]\s*(\d{2})/g)) nums.push([+m[1], +m[2]]);
+  for (const m of t.matchAll(/(\d{2})\s*\+/g)) nums.push([+m[1], 65]);
+  if (!nums.length) return { known: false, min: 18, max: 65 };
+  return { known: true, min: Math.min(...nums.map((n) => n[0])), max: Math.max(...nums.map((n) => n[1])) };
+}
+
 // ---------- campaign brief ----------
 export function sanitizeBrief(raw) {
   const r = raw && typeof raw === 'object' ? raw : {};
@@ -82,19 +93,20 @@ export function sanitizeBrief(raw) {
 }
 
 export function fallbackBrief({ business: b = {}, campaign }) {
-  const ages = String(b.customer_age || '').match(/(\d{2})\D+(\d{2})/);
+  const ages = parseAges(b.customer_age);
   const markets = String(b.country || '').split('|').map((x) => x.trim()).filter(Boolean);
   const interests = String(b.interests || '').split(/[,;]/).map((x) => x.trim()).filter(Boolean);
   const meta = /instagram|facebook/i.test(campaign.platform);
   const missing = [];
   if (!interests.length) missing.push('Who your customers are and what they are interested in');
+  if (!ages.known) missing.push('Which age groups buy from you');
   if (!b.usp) missing.push('What makes you different from competitors');
   return sanitizeBrief({
     objective: b.goal || 'Get more customers',
     audience: {
-      age_min: ages ? ages[1] : 25, age_max: ages ? ages[2] : 44, genders: 'All',
+      age_min: ages.min, age_max: ages.max, genders: 'All',
       locations: markets.length ? markets : (b.customer_location ? [b.customer_location] : []), interests,
-      notes: 'Starting point built from your profile. Refine it once you see results.',
+      notes: ages.known ? 'Starting point built from your profile. Refine it once you see results.' : 'You have not told us your customers\' ages, so the whole 18-65 range is used. Narrow it once you know who buys.',
     },
     placements: meta ? ['Instagram Feed', 'Instagram Stories', 'Reels'] : ['Search results'],
     creative: { formats: ['Short video (15s)', 'Single image', 'Carousel'], ideas: [`Show ${b.name || 'your offer'} in use, in the first 2 seconds`, 'Customer proof: a quote or a result'] },

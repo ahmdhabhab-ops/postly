@@ -22,7 +22,7 @@ const EMAIL = /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/;
 const CHANNELS = ['Instagram', 'Facebook', 'Meta Ads', 'TikTok', 'Google Business Profile', 'ChatGPT Ads', 'WhatsApp'];
 const BUSINESS_FIELDS = {
   name: 120, type: 60, industry: 60, website: 200, location: 120, description: 1000,
-  goal: 120, country: 400, usp: 1000, price_range: 60, customer_age: 20, customer_type: 30, customer_location: 120, interests: 300, budget: 40,
+  goal: 120, country: 400, usp: 1000, price_range: 60, customer_age: 80, customer_type: 30, customer_location: 120, interests: 300, budget: 40,
 };
 
 // Several markets are stored in one text column separated by " | ".
@@ -281,8 +281,8 @@ export function createApp(cfg, { pool, wa = createWhatsAppClient(cfg.whatsapp), 
     await refreshSiteText(req.user.id, business);
     const comps = (await pool.query('select name, url, market, reason, analysis from competitors where user_id=$1 order by created_at limit 8', [req.user.id])).rows;
     // Really creates the draft (or reuses a pending one for the same platform) and attaches a full plan.
-    const createDraft = async (platformInput) => {
-      const draft = draftFor(platformInput, business);
+    const createDraft = async (platformInput, opts) => {
+      const draft = draftFor(platformInput, business, adviceOf(business), opts);
       if (!draft) return null;
       const existing = (await pool.query(
         "select * from campaigns where user_id=$1 and platform=$2 and status='pending' order by created_at desc limit 1",
@@ -300,9 +300,9 @@ export function createApp(cfg, { pool, wa = createWhatsAppClient(cfg.whatsapp), 
     };
     const camps = await pool.query('select title, platform, status, budget_per_day, duration_days from campaigns where user_id=$1 order by created_at desc limit 8', [req.user.id]);
     const context = buildAssistantContext({ business, competitors: comps, campaigns: camps.rows, websiteNotes: notesFor(business), advice: adviceOf(business), icp: icpOf(business) });
-    const { reply, campaign } = await assistantReply({ cfg, context, history, text, createDraft, fetchImpl });
+    const { reply, campaign, campaigns: createdNow } = await assistantReply({ cfg, context, history, text, createDraft, fetchImpl });
     await pool.query('insert into chat_messages(user_id, role, content) values ($1,$2,$3), ($1,$4,$5)', [req.user.id, 'user', text, 'assistant', reply]);
-    res.json({ reply, campaign: campaign ? campaignOut(campaign, business) : null });
+    res.json({ reply, campaign: campaign ? campaignOut(campaign, business) : null, created: (createdNow || []).length });
   }));
 
   // Reads the owner's own website once a week (or when it was never read) so the assistant knows the business,

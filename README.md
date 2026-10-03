@@ -40,6 +40,12 @@ be real URLs (links are fetched with the SSRF-safe client; dead links dropped, u
 flags (asked for it, date/urgency, budget, in market, clear need). Nothing is sent automatically: the owner writes to each lead manually,
 because WhatsApp and email rules require consent. Do not add bulk sending to this list.
 
+## Nothing is assumed about the client
+Onboarding pre-selects nothing: type, industry, goal, budget and customer type start empty, and age groups are a multi-select (with "All ages" and
+"Not sure"). Empty means unknown: plans then use broad targeting (ages 18-65) and list suggestions as assumptions. Everything can be edited later in
+Settings. Campaign budgets follow the stated monthly budget (split by the channel advice, or evenly over the platforms created together), and the
+assistant can create drafts on several platforms in one request ("all platforms").
+
 ## Deploy (Dokploy)
 Compose path `./docker-compose.yml`; put the variables from `.env.example` in the Environment tab
 (`DB_PASSWORD` is required). Domains tab: service `web`, port `3000`.

@@ -17,18 +17,45 @@ export function platformKey(input) {
   return Object.keys(PLATFORMS).find((k) => t.includes(k)) || (/\big\b/.test(t) ? 'instagram' : /\bfb\b/.test(t) ? 'facebook' : null);
 }
 
-export function draftFor(platformInput, business) {
+// Monthly budget in dollars from the onboarding choices ("Under $100", "$100 – $300", "$1,000+"), or null if unknown.
+export function monthlyBudget(text) {
+  const t = String(text ?? '');
+  const nums = [...t.matchAll(/\$?\s*(\d[\d,]*)/g)].map((m) => Number(m[1].replace(/,/g, ''))).filter((n) => n > 0);
+  if (!nums.length) return null;
+  if (/under|less/i.test(t)) return Math.round(nums[0] * 0.75);
+  if (/\+|more|over/i.test(t)) return Math.round(nums[0] * 1.2);
+  return nums.length >= 2 ? Math.round((nums[0] + nums[1]) / 2) : nums[0];
+}
+
+const adviceShare = (advice, name) => {
+  const names = /\+/.test(name) ? ['Instagram', 'Facebook'] : [name];
+  const hits = (advice || []).filter((a) => names.includes(a.platform) && a.budget_share > 0);
+  return hits.length ? hits.reduce((n, a) => n + a.budget_share, 0) : null;
+};
+
+export function draftFor(platformInput, business, advice = [], { count = 2 } = {}) {
   const key = platformKey(platformInput);
   if (!key) return null;
   const p = PLATFORMS[key];
-  const goal = business?.goal || 'New customers';
+  const goal = business?.goal && !/not sure/i.test(business.goal) ? business.goal : 'Get more customers';
+  // Daily budget follows what the owner said they can spend: their monthly budget x this platform's share of it.
+  // With no advice the money is split evenly over the platforms created together (assume 2 when unknown).
+  let daily = p.budget; let leads = p.leads;
+  const monthly = monthlyBudget(business?.budget);
+  if (monthly) {
+    const share = adviceShare(advice, p.name) ?? 100 / Math.max(1, count);
+    daily = Math.max(1, Math.min(500, Math.round((monthly * share) / 100 / 30)));
+    leads = Math.max(3, Math.round((p.leads * daily) / p.budget));
+  }
+  const ages = business?.customer_age && !/not sure/i.test(business.customer_age) ? business.customer_age : 'all ages';
+  const where = business?.customer_location || String(business?.country || '').split('|')[0].trim() || 'your market';
   return {
     title: `${goal} — ${p.name}`,
     platform: p.name,
-    budget_per_day: p.budget,
+    budget_per_day: daily,
     duration_days: 7,
-    audience: business?.customer_location ? `${business.customer_location}, ${business.customer_age || '25-44'}` : 'Local, 25-44',
-    expected_leads: p.leads,
+    audience: `${where}, ${ages}`,
+    expected_leads: leads,
   };
 }
 
@@ -90,7 +117,7 @@ export function buildAssistantContext({ business: b = {}, competitors = [], camp
 
 const CREATE_DRAFT_TOOL = {
   name: 'create_campaign_draft',
-  description: 'Create a campaign DRAFT for the owner to approve in Postly. Nothing is published or spent. Call this as soon as the user asks you to make/create/build/set up a campaign or ads on a platform, in any language (including Arabic written in Latin letters such as "3mele", "sawwi", "esna3"). "Meta" means Instagram + Facebook. Use your best assumptions for anything unknown; the full plan is generated automatically and unknowns are listed there as questions.',
+  description: 'Create a campaign DRAFT for the owner to approve in Postly. Nothing is published or spent. Call this as soon as the user asks you to make/create/build/set up a campaign or ads on a platform, in any language (including Arabic written in Latin letters such as "3mele", "sawwi", "esna3"). "Meta" means Instagram + Facebook. Use your best assumptions for anything unknown; the full plan is generated automatically and unknowns are listed there as questions. If the user wants ads on several platforms or on all of them, call this tool once per platform in the same turn.',
   input_schema: {
     type: 'object',
     properties: { platform: { type: 'string', enum: DRAFT_PLATFORMS, description: 'Where the campaign will run' } },
@@ -103,9 +130,18 @@ const CREATE_DRAFT_TOOL = {
 // Returns { reply, campaign, reused } where campaign is only set if a draft truly exists.
 export async function assistantReply({ cfg, context, history, text, createDraft, fetchImpl = fetch }) {
   if (!cfg.anthropicApiKey) {
+    const t = text.toLowerCase();
+    const everywhere = /all platforms|every platform|everywhere|all channels|kel (el )?platforms?|kel shi|3ala kel|not only|(m|mi)sh bass/.test(t)
+      && /campa?i?gn|\bads?\b|i3lan|e3lan/.test(t) && /(create|make|build|3mel|3mol|a3mel|esna3|sawwi|sawi|bade|bdi)/.test(t);
+    if (everywhere && createDraft) {
+      const made = [];
+      for (const p of ['Instagram', 'Facebook', 'Google']) { const m = await createDraft(p, { count: 3 }); if (m) made.push(m); }
+      const total = made.reduce((n, m) => n + m.campaign.budget_per_day, 0);
+      return { reply: `I drafted campaigns for ${made.map((m) => m.campaign.platform).join(', ')} (about $${total}/day in total). They wait for your approval in Campaigns, and nothing spends until you approve them.`, campaign: made.at(-1)?.campaign ?? null, campaigns: made.filter((m) => !m.reused).map((m) => m.campaign), reused: false };
+    }
     const draft = detectCampaignRequest(text, null);
     const made = draft && createDraft ? await createDraft(draft.platform) : null;
-    return { reply: fallbackReply(text, made?.campaign), campaign: made?.campaign ?? null, reused: made?.reused ?? false };
+    return { reply: fallbackReply(text, made?.campaign), campaign: made?.campaign ?? null, campaigns: made && !made.reused ? [made.campaign] : [], reused: made?.reused ?? false };
   }
   const system = [
     'You are Postly, an AI marketing assistant for ONE small business. You know it from the profile below.',
@@ -116,6 +152,8 @@ export async function assistantReply({ cfg, context, history, text, createDraft,
     'After the tool returns: in 2-4 short sentences say what was created (platform, budget, days), that the full plan (audience, interests, copy, creative) is in Campaigns on that draft, and that nothing is published or spent until the owner approves. If status is already_exists, say a draft for that platform already exists and point to it.',
     'If the user asks where to advertise or what is best, recommend platforms from the channel advice (or reason from the profile), explain why simply, and ask which to start with; do not create a draft until a platform is chosen. If they pick one the advice ranks "Later" or "Skip for now", still create it, and say once in one sentence which platform fits better and why.',
     'If you are unsure which platform they mean by "meta", it is Instagram + Facebook.',
+    'MORE THAN ONE PLATFORM: if the user wants ads on all platforms, everywhere, or says "not only Instagram" (for example "kel el platforms", "3ala kel shi"), call create_campaign_draft once per platform in this same turn: use the platforms the channel advice rates Best fit or Good fit (at most 4); with no advice use Instagram, Facebook and Google. Afterwards list the platforms and the combined daily budget. The daily budgets already follow the owner\'s stated monthly budget; if they gave none, say the budgets are placeholders.',
+    'Do not assume things the profile does not say (for example customer ages or interests). If they are missing, say the plan uses broad targeting and lists suggestions to confirm.',
     'If the user does not know something about ads (ages, interests, creative), suggest concrete options and explain them simply; say what you assumed.',
     'Never invent numbers (clicks, spend, revenue, followers) or facts about the business or competitors that are not in the profile. Ad-platform data is not connected yet.',
     'Style: plain text, short paragraphs, "-" bullets, max about 150 words. No markdown symbols like ** or #.',
@@ -126,7 +164,7 @@ export async function assistantReply({ cfg, context, history, text, createDraft,
   ].join('\n');
 
   const messages = [...history, { role: 'user', content: text }];
-  let campaign = null; let reused = false;
+  let campaign = null; let reused = false; const created = [];
   try {
     for (let turn = 0; turn < 3; turn++) {
       const res = await fetchImpl('https://api.anthropic.com/v1/messages', {
@@ -142,11 +180,15 @@ export async function assistantReply({ cfg, context, history, text, createDraft,
       const data = await res.json();
       if (data.stop_reason === 'tool_use') {
         const results = [];
-        for (const block of data.content.filter((c) => c.type === 'tool_use')) {
+        let made_n = 0;
+        const toolBlocks = data.content.filter((c) => c.type === 'tool_use');
+        for (const block of toolBlocks) {
           let out;
-          if (block.name === 'create_campaign_draft' && createDraft) {
-            const made = await createDraft(block.input?.platform);
-            if (made) { campaign = made.campaign; reused = made.reused; out = { status: made.reused ? 'already_exists' : 'created', platform: made.campaign.platform, budget_per_day: made.campaign.budget_per_day, duration_days: made.campaign.duration_days }; }
+          if (block.name === 'create_campaign_draft' && createDraft && ++made_n > 6) {
+            out = { status: 'error', message: 'Too many drafts at once. Create at most 6 per message.' };
+          } else if (block.name === 'create_campaign_draft' && createDraft) {
+            const made = await createDraft(block.input?.platform, { count: Math.min(toolBlocks.length, 6) });
+            if (made) { campaign = made.campaign; reused = made.reused; if (!made.reused) created.push(made.campaign); out = { status: made.reused ? 'already_exists' : 'created', platform: made.campaign.platform, budget_per_day: made.campaign.budget_per_day, duration_days: made.campaign.duration_days }; }
             else out = { status: 'error', message: 'Unknown platform. Ask the user which of Instagram, Facebook, Meta, Google, TikTok or ChatGPT Ads they want.' };
           } else out = { status: 'error', message: 'Unknown tool' };
           results.push({ type: 'tool_result', tool_use_id: block.id, content: JSON.stringify(out), ...(out.status === 'error' && { is_error: true }) });
@@ -156,10 +198,10 @@ export async function assistantReply({ cfg, context, history, text, createDraft,
       }
       const out = data.content?.filter((c) => c.type === 'text').map((c) => c.text).join('\n').trim();
       if (data.stop_reason === 'max_tokens') console.error('assistant reply hit max_tokens');
-      return { reply: out || fallbackReply(text, campaign), campaign, reused };
+      return { reply: out || fallbackReply(text, campaign), campaign, campaigns: created, reused };
     }
   } catch (e) {
     console.error('assistant error:', e.message);
   }
-  return { reply: fallbackReply(text, campaign), campaign, reused };
+  return { reply: fallbackReply(text, campaign), campaign, campaigns: created, reused };
 }
