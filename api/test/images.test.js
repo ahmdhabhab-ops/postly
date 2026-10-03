@@ -170,3 +170,28 @@ test('withRules adds the safety rules once', () => {
   assert.match(withRules('A cup'), /No text, letters/);
   const once = withRules('A cup'); assert.equal(withRules(once), once);
 });
+
+import { explainImageError } from '../src/images.js';
+
+test('image errors: short safe sentence for users, Google\'s own words (key removed) only for the operator', async () => {
+  assert.equal(explainImageError({ status: 403, message: 'x' }).user.includes('API key and billing'), true);
+  assert.match(explainImageError({ status: 404 }).user, /model was not found/);
+  assert.match(explainImageError({ status: 429 }).user, /quota/);
+  assert.match(explainImageError(new Error('got 400 INVALID_ARGUMENT: bad field')).user, /could not accept/);
+  assert.match(explainImageError(new Error('socket hang up')).user, /did not respond/);
+  const e = explainImageError(new Error('403 API key GKEY is invalid'), 'GKEY');
+  assert.ok(!e.detail.includes('GKEY') && /\[key\]/.test(e.detail));
+
+  const user = await userWithCampaign('ie1@i.com');
+  genImpl = async () => { throw Object.assign(new Error('403 PERMISSION_DENIED: key GKEY has no access to the model'), { status: 403 }); };
+  const r = await user.c.post(`/api/campaigns/${user.id}/images`, { prompt: 'A long enough prompt here' });
+  assert.equal(r.status, 502);
+  assert.match(r.json.error, /check the Gemini API key and billing/);
+  assert.ok(!/Google said|PERMISSION_DENIED|GKEY/.test(r.text));                   // an ordinary user never sees the raw message
+
+  const op = await userWithCampaign('boss@i.com');
+  const o = await op.c.post(`/api/campaigns/${op.id}/images`, { prompt: 'A long enough prompt here' });
+  assert.equal(o.status, 502);
+  assert.match(o.json.error, /Google said: 403 PERMISSION_DENIED: key \[key\] has no access/);
+  assert.ok(!o.text.includes('GKEY'));
+});

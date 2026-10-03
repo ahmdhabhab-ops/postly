@@ -101,3 +101,17 @@ export async function suggestImageIdeas({ cfg, business, campaign, brief, fetchI
   ideas = ideas.map((x) => ({ ...x, prompt: x.prompt.includes('No text, letters') ? x.prompt : `${x.prompt} ${RULES}`.slice(0, MAX_PROMPT) }));
   return ideas.length >= 2 ? { ai: true, ideas } : { ai: false, ideas: fallbackIdeas({ business, brief }) };
 }
+
+// Turns an error from the image API into a short, safe explanation. `detail` is only shown to the operator.
+export function explainImageError(e, key = '') {
+  const status = Number(e?.status ?? e?.code ?? (String(e?.message ?? '').match(/\b(4\d\d|5\d\d)\b/) || [])[1]) || 0;
+  const raw = String(e?.message ?? e ?? '').replace(/\s+/g, ' ');
+  const detail = (key ? raw.split(key).join('[key]') : raw).slice(0, 400);
+  const user =
+    status === 401 || status === 403 ? 'The image service refused our access. The owner needs to check the Gemini API key and billing.'
+    : status === 404 ? 'The image model was not found for this key. The owner needs to check the model name.'
+    : status === 429 ? 'The image service is busy or the quota is used up. Try again later.'
+    : status === 400 ? 'The image service could not accept this request. Try a different description.'
+    : 'The image service did not respond. Try again in a minute.';
+  return { status, user, detail };
+}

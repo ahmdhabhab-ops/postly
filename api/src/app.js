@@ -15,7 +15,7 @@ import { analyzeCompetitor, buildStats, writeReport, discoverCompetitors } from 
 import { extractPage } from './safefetch.js';
 import { buildPlanWorkbook, safeFilename } from './export.js';
 import { generateChannelAdvice } from './advice.js';
-import { createImageClient, suggestImageIdeas, ImageError, ASPECTS, MAX_PROMPT, withRules } from './images.js';
+import { createImageClient, suggestImageIdeas, ImageError, ASPECTS, MAX_PROMPT, withRules, explainImageError } from './images.js';
 import { generateIcp, findLeads, sanitizeLead, scoreLead, regenerateMessage, sanitizeTarget, matchMarket, STATUSES, LANGUAGES, hostOf } from './leads.js';
 import { generateBrief, siteSignals, websiteNotes, sanitizeBrief, classifyFetchError } from './brief.js';
 
@@ -260,8 +260,10 @@ export function createApp(cfg, { pool, wa = createWhatsAppClient(cfg.whatsapp), 
     try { img = await imageClient.generate(withRules(prompt), aspect); }
     catch (e) {
       if (e instanceof ImageError) return res.status(422).json({ error: e.message });
-      console.error('image generation failed:', e?.status ?? '', String(e?.message ?? e).slice(0, 200).replace(cfg.geminiApiKey || '\u0000', '[key]'));
-      return res.status(502).json({ error: 'The image service did not respond. Try again in a minute.' });
+      const why = explainImageError(e, cfg.geminiApiKey);
+      console.error('image generation failed:', why.status || '', why.detail);
+      // The operator sees Google's own message (key removed); everybody else gets a short, safe sentence.
+      return res.status(502).json({ error: isAdmin(req.user.email) ? `${why.user} (Google said: ${why.detail || 'no message'})` : why.user });
     }
     const { rows } = await pool.query(
       'insert into images(id,user_id,campaign_id,prompt,aspect,mime,data) values ($1,$2,$3,$4,$5,$6,$7) returning id, campaign_id, prompt, aspect, created_at',
