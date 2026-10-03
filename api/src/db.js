@@ -129,6 +129,18 @@ create table if not exists leads (
 );
 create unique index if not exists leads_user_url_idx on leads(user_id, url);
 create index if not exists leads_user_idx on leads(user_id, score desc);
+create table if not exists images (
+  id uuid primary key,
+  user_id uuid not null references users(id) on delete cascade,
+  campaign_id uuid references campaigns(id) on delete cascade,
+  prompt text not null,
+  aspect text not null default '1:1',
+  mime text not null,
+  data bytea not null,
+  created_at timestamptz not null default now()
+);
+create index if not exists images_user_idx on images(user_id, created_at desc);
+create index if not exists images_campaign_idx on images(campaign_id);
 create table if not exists whatsapp_log (
   id bigserial primary key,
   user_id uuid references users(id) on delete set null,

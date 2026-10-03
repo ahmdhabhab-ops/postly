@@ -47,6 +47,13 @@ Onboarding pre-selects nothing: type, industry, goal, budget and customer type s
 Settings. Campaign budgets follow the stated monthly budget (split by the channel advice, or evenly over the platforms created together), and the
 assistant can create drafts on several platforms in one request ("all platforms").
 
+## Ad images
+`Create ad images` on a campaign: Claude writes 3 image prompts from the plan, the owner edits them, and Google's image model
+(`GEMINI_IMAGE_MODEL`, official `@google/genai` SDK, Interactions API, `store:false`) creates the picture. The key stays on the server.
+Every prompt carries rules (no text/logos/real people); images are stored in Postgres, served only to their owner, with a daily limit
+(`IMAGES_PER_DAY`). The Google call itself could not be tested against the real service from CI: tests use a fake client with the documented
+response shape, so check the first real image after deploying.
+
 ## Deploy (Dokploy)
 Compose path `./docker-compose.yml`; put the variables from `.env.example` in the Environment tab
 (`DB_PASSWORD` is required). Domains tab: service `web`, port `3000`.

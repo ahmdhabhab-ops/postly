@@ -12,6 +12,7 @@
     "node": ">=20"
   },
   "dependencies": {
+    "@google/genai": "^2.27.0",
     "exceljs": "^4.4.0",
     "express": "^4.21.2",
     "express-rate-limit": "^7.5.0",

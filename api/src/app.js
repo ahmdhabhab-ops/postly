@@ -15,6 +15,7 @@ import { analyzeCompetitor, buildStats, writeReport, discoverCompetitors } from 
 import { extractPage } from './safefetch.js';
 import { buildPlanWorkbook, safeFilename } from './export.js';
 import { generateChannelAdvice } from './advice.js';
+import { createImageClient, suggestImageIdeas, ImageError, ASPECTS, MAX_PROMPT, withRules } from './images.js';
 import { generateIcp, findLeads, sanitizeLead, scoreLead, regenerateMessage, sanitizeTarget, matchMarket, STATUSES, LANGUAGES, hostOf } from './leads.js';
 import { generateBrief, siteSignals, websiteNotes, sanitizeBrief, classifyFetchError } from './brief.js';
 
@@ -44,7 +45,7 @@ const str = (v, max, field) => {
   return v.trim();
 };
 
-export function createApp(cfg, { pool, wa = createWhatsAppClient(cfg.whatsapp), onEvent = defaultOnEvent, fetchImpl = fetch, fetchPage = fetchPublicPage } = {}) {
+export function createApp(cfg, { pool, wa = createWhatsAppClient(cfg.whatsapp), onEvent = defaultOnEvent, fetchImpl = fetch, fetchPage = fetchPublicPage, imageClient = createImageClient(cfg), imageEnabled = Boolean(cfg.geminiApiKey) } = {}) {
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', cfg.trustProxyHops);
@@ -219,6 +220,73 @@ export function createApp(cfg, { pool, wa = createWhatsAppClient(cfg.whatsapp), 
     await pool.query('update businesses set channel_advice=$2, channel_advice_ai=$3, channel_advice_at=now() where user_id=$1', [req.user.id, JSON.stringify(advice), ai]);
     await log(req.user.id, 'Recommended where to advertise');
     res.json({ advice, ai, at: new Date().toISOString() });
+  }));
+
+  // --- ad images (Google image model; key stays on the server) ---
+  const ownCampaign = async (req, res) => {
+    if (!/^[0-9a-f-]{36}$/.test(req.params.id)) { res.status(404).json({ error: 'Not found' }); return null; }
+    const c = (await pool.query('select * from campaigns where id=$1 and user_id=$2', [req.params.id, req.user.id])).rows[0];
+    if (!c) res.status(404).json({ error: 'Not found' });
+    return c ?? null;
+  };
+  const imageMeta = (r) => ({ id: r.id, campaign_id: r.campaign_id, prompt: r.prompt, aspect: r.aspect, created_at: r.created_at });
+
+  api.post('/campaigns/:id/image-ideas', requireUser, aiLimiter, wrap(async (req, res) => {
+    const c = await ownCampaign(req, res); if (!c) return;
+    const business = (await pool.query('select * from businesses where user_id=$1', [req.user.id])).rows[0];
+    const { ideas, ai } = await suggestImageIdeas({ cfg, business, campaign: c, brief: briefOf(c), fetchImpl });
+    res.json({ ideas, ai, aspects: ASPECTS });
+  }));
+
+  api.get('/campaigns/:id/images', requireUser, wrap(async (req, res) => {
+    const c = await ownCampaign(req, res); if (!c) return;
+    const { rows } = await pool.query('select id, campaign_id, prompt, aspect, created_at from images where campaign_id=$1 and user_id=$2 order by created_at desc limit 40', [c.id, req.user.id]);
+    res.json({ images: rows.map(imageMeta) });
+  }));
+
+  api.post('/campaigns/:id/images', requireUser, writeLimiter, wrap(async (req, res) => {
+    if (!imageEnabled) return res.status(503).json({ error: 'Image creation is not enabled on this server (GEMINI_API_KEY missing)' });
+    const c = await ownCampaign(req, res); if (!c) return;
+    const prompt = str(req.body?.prompt, MAX_PROMPT, 'prompt');
+    if (prompt.length < 10) throw new ValidationError('Describe the image in a few words');
+    const aspect = Object.keys(ASPECTS).includes(req.body?.aspect) ? req.body.aspect : '1:1';
+    const counts = (await pool.query(
+      `select count(*)::int as total, count(*) filter (where created_at > now() - interval '24 hours')::int as today from images where user_id=$1`, [req.user.id])).rows[0];
+    if (counts.total >= 40) throw new ValidationError('You have 40 saved images. Delete some before creating more.');
+    if (!isAdmin(req.user.email) && counts.today >= cfg.imagesPerDay) {
+      return res.status(429).json({ error: `You can create ${cfg.imagesPerDay} images per day. Try again tomorrow.` });
+    }
+    let img;
+    try { img = await imageClient.generate(withRules(prompt), aspect); }
+    catch (e) {
+      if (e instanceof ImageError) return res.status(422).json({ error: e.message });
+      console.error('image generation failed:', e?.status ?? '', String(e?.message ?? e).slice(0, 200).replace(cfg.geminiApiKey || '\u0000', '[key]'));
+      return res.status(502).json({ error: 'The image service did not respond. Try again in a minute.' });
+    }
+    const { rows } = await pool.query(
+      'insert into images(id,user_id,campaign_id,prompt,aspect,mime,data) values ($1,$2,$3,$4,$5,$6,$7) returning id, campaign_id, prompt, aspect, created_at',
+      [crypto.randomUUID(), req.user.id, c.id, prompt, aspect, img.mime, img.buffer]);
+    await log(req.user.id, `Created an ad image for "${c.title}"`);
+    res.status(201).json({ image: imageMeta(rows[0]) });
+  }));
+
+  api.get('/images/:id', requireUser, wrap(async (req, res) => {
+    if (!/^[0-9a-f-]{36}$/.test(req.params.id)) return res.status(404).json({ error: 'Not found' });
+    const r = (await pool.query('select mime, data, aspect from images where id=$1 and user_id=$2', [req.params.id, req.user.id])).rows[0];
+    if (!r) return res.status(404).json({ error: 'Not found' });
+    const ext = r.mime === 'image/jpeg' ? 'jpg' : r.mime === 'image/webp' ? 'webp' : 'png';
+    res.set({
+      'Content-Type': r.mime,
+      'Cache-Control': 'private, max-age=3600',
+      'Content-Disposition': `${req.query.download ? 'attachment' : 'inline'}; filename="postly-ad-${req.params.id.slice(0, 8)}-${r.aspect.replace(':', 'x')}.${ext}"`,
+    });
+    res.send(r.data);
+  }));
+
+  api.delete('/images/:id', requireUser, writeLimiter, wrap(async (req, res) => {
+    if (!/^[0-9a-f-]{36}$/.test(req.params.id)) return res.status(404).json({ error: 'Not found' });
+    await pool.query('delete from images where id=$1 and user_id=$2', [req.params.id, req.user.id]);
+    res.json({ ok: true });
   }));
 
   api.delete('/campaigns/:id', requireUser, writeLimiter, wrap(async (req, res) => {
