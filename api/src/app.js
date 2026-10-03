@@ -15,7 +15,7 @@ import { analyzeCompetitor, buildStats, writeReport, discoverCompetitors } from 
 import { extractPage } from './safefetch.js';
 import { buildPlanWorkbook, safeFilename } from './export.js';
 import { generateChannelAdvice } from './advice.js';
-import { generateIcp, findLeads, sanitizeLead, scoreLead, regenerateMessage, STATUSES, LANGUAGES, hostOf } from './leads.js';
+import { generateIcp, findLeads, sanitizeLead, scoreLead, regenerateMessage, sanitizeTarget, matchMarket, STATUSES, LANGUAGES, hostOf } from './leads.js';
 import { generateBrief, siteSignals, websiteNotes, sanitizeBrief, classifyFetchError } from './brief.js';
 
 const EMAIL = /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/;
@@ -144,7 +144,7 @@ export function createApp(cfg, { pool, wa = createWhatsAppClient(cfg.whatsapp), 
   async function meResponse(userId) {
     const u = (await pool.query('select id,email,first_name,last_name,phone from users where id=$1', [userId])).rows[0];
     const business = (await pool.query('select * from businesses where user_id=$1', [userId])).rows[0] ?? null;
-    if (business) { delete business.site_text; delete business.last_discovery_at; delete business.site_fetched_at; delete business.site_signals; delete business.channel_advice; delete business.channel_advice_ai; delete business.channel_advice_at; delete business.icp; delete business.icp_ai; delete business.last_prospect_at; } // internal cache of the user's own site text
+    if (business) { delete business.site_text; delete business.last_discovery_at; delete business.site_fetched_at; delete business.site_signals; delete business.channel_advice; delete business.channel_advice_ai; delete business.channel_advice_at; delete business.icp; delete business.icp_ai; delete business.last_prospect_at; delete business.lead_target; } // internal cache of the user's own site text
     return { user: { id: u.id, email: u.email, firstName: u.first_name, lastName: u.last_name, phone: u.phone, canSendWhatsApp: isAdmin(u.email) }, business, help: { name: cfg.helpName, url: cfg.helpUrl } };
   }
   const isAdmin = (email) => cfg.adminEmails.includes(String(email).toLowerCase());
@@ -439,7 +439,8 @@ export function createApp(cfg, { pool, wa = createWhatsAppClient(cfg.whatsapp), 
   api.get('/leads', requireUser, wrap(async (req, res) => {
     const b = (await pool.query('select * from businesses where user_id=$1', [req.user.id])).rows[0];
     const { rows } = await pool.query('select * from leads where user_id=$1 order by score desc, created_at desc limit 100', [req.user.id]);
-    res.json({ leads: rows.map(leadOut), icp: icpOf(b), icp_ai: Boolean(b?.icp_ai) });
+    let target = null; try { target = b?.lead_target ? JSON.parse(b.lead_target) : null; } catch { /* none */ }
+    res.json({ leads: rows.map(leadOut), icp: icpOf(b), icp_ai: Boolean(b?.icp_ai), target });
   }));
 
   api.post('/leads/profile', requireUser, aiLimiter, wrap(async (req, res) => {
@@ -457,6 +458,10 @@ export function createApp(cfg, { pool, wa = createWhatsAppClient(cfg.whatsapp), 
     if (!cfg.anthropicApiKey) return res.status(503).json({ error: 'AI is not enabled on this server (ANTHROPIC_API_KEY missing)' });
     const business = (await pool.query('select * from businesses where user_id=$1', [req.user.id])).rows[0];
     if (!business || (!business.description && !business.website)) throw new ValidationError('Describe your business or add your website first (Competitors > About your business)');
+    const marketList = String(business.country || '').split('|').map((x) => x.trim()).filter(Boolean);
+    const target = sanitizeTarget(req.body?.target, marketList);
+    if (!target.countries.length) throw new ValidationError('Choose at least one country to search in');
+    await pool.query('update businesses set lead_target=$2 where user_id=$1', [req.user.id, JSON.stringify(target)]);
     const have = (await pool.query('select count(*)::int as n from leads where user_id=$1', [req.user.id])).rows[0].n;
     if (have >= 100) throw new ValidationError('You have 100 saved customers. Remove some before searching again.');
     // One AI search per 24h per user (operators exempt); a failed search gives the slot back.
@@ -483,7 +488,7 @@ export function createApp(cfg, { pool, wa = createWhatsAppClient(cfg.whatsapp), 
       const comps = (await pool.query('select url from competitors where user_id=$1', [req.user.id])).rows;
       const known = (await pool.query('select domain from leads where user_id=$1', [req.user.id])).rows.map((r) => r.domain);
       const skipHosts = new Set([hostOf(/^https?:/i.test(business.website || '') ? business.website : `https://${business.website || ''}`), ...comps.map((c) => hostOf(c.url))].filter(Boolean));
-      const found = await findLeads({ cfg, business, icp, existingHosts: [...skipHosts, ...known], fetchImpl });
+      const found = await findLeads({ cfg, business, icp, target, existingHosts: [...skipHosts, ...known], fetchImpl });
       if (found === null) { await refund(); return res.status(502).json({ error: 'The AI search did not respond. Try again in a minute.' }); }
 
       // keep well-formed, new candidates (max 8), then check that each link is real
@@ -492,6 +497,9 @@ export function createApp(cfg, { pool, wa = createWhatsAppClient(cfg.whatsapp), 
       for (const raw of found) {
         const c = sanitizeLead(raw);
         if (!c || seenUrls.has(c.url) || skipHosts.has(c.domain)) continue;
+        const market = matchMarket(c.market, target.countries);
+        if (!market) continue;                       // outside the countries the owner chose
+        c.market = market;
         seenUrls.add(c.url); cands.push(c);
         if (cands.length >= 8) break;
       }
@@ -512,6 +520,7 @@ export function createApp(cfg, { pool, wa = createWhatsAppClient(cfg.whatsapp), 
           [crypto.randomUUID(), req.user.id, c.kind, c.name, c.url, c.domain, c.market, c.why, c.evidence, JSON.stringify(c.signals), score, intent, verified, c.message, c.channel]);
         if (rows[0]) added.push(leadOut(rows[0]));
       }
+      if (!added.length) await refund();          // nothing delivered: do not use up the day
       await log(req.user.id, `Found ${added.length} possible new customer(s)`);
       res.json({ added, found: found.length });
     } catch (e) { await refund(); throw e; }

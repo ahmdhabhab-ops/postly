@@ -44,6 +44,7 @@ alter table businesses add column if not exists site_signals text not null defau
 alter table businesses add column if not exists icp text not null default '';
 alter table businesses add column if not exists icp_ai boolean not null default false;
 alter table businesses add column if not exists last_prospect_at timestamptz;
+alter table businesses add column if not exists lead_target text not null default '';
 alter table businesses add column if not exists channel_advice text not null default '';
 alter table businesses add column if not exists channel_advice_ai boolean not null default false;
 alter table businesses add column if not exists channel_advice_at timestamptz;

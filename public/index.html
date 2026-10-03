@@ -1290,26 +1290,36 @@ input:focus,select:focus,textarea:focus{outline:none; border-color:var(--violet)
 
       <!-- Customers -->
       <div class="app-page" id="page-customers">
-        <div class="page-head"><div><h1>New customers</h1><p>Your AI team searches the public web for people and businesses likely to buy from you. You contact them yourself.</p></div></div>
-        <div class="panel">
-          <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:6px;">
-            <h3 style="margin:0;">1. Your ideal customer</h3>
-            <button class="btn btn-ghost btn-sm" id="icpBtn" onclick="buildIcp()">Build my customer profile</button>
+        <div class="page-head"><div><h1>New customers</h1><p>You choose who you want. Your AI team then searches the public web for people and businesses like that. You contact them yourself.</p></div></div>
+        <div class="panel" id="targetPanel">
+          <h3>1. Who do you want as customers?</h3>
+          <p style="color:var(--text-dim); font-size:13.5px; margin-bottom:16px;">The AI only searches for what you pick here, in the countries you pick.</p>
+          <div class="field-group"><label>Customer type</label><div class="chip-pick" id="tgType"></div></div>
+          <div class="field-group"><label>Which kinds of customers? (up to 4, press Enter after each)</label>
+            <div class="chip-input" id="tgSegBox"><span id="tgSegChips" style="display:contents;"></span><input type="text" id="tgSeg" maxlength="160" placeholder="e.g. wedding planners, engaged couples, small hotels"></div>
+            <div id="tgSuggest" style="display:none; margin-top:8px;"></div>
           </div>
-          <p class="form-error" id="icpError" role="alert"></p>
-          <div id="icpBox"><p class="empty-note">Not built yet. It uses what you wrote in Competitors &gt; About your business.</p></div>
+          <div class="field-group"><label>Which countries? (up to 6)</label>
+            <div class="chip-input" id="tgCtyBox"><span id="tgCtyChips" style="display:contents;"></span><input type="text" id="tgCty" list="countryList" maxlength="50" placeholder="Type a country, press Enter"></div>
+          </div>
+          <div class="field-group"><label>Anything else? (optional)</label><input type="text" id="tgNotes" maxlength="300" placeholder="e.g. must have a date soon, budget above $100"></div>
+          <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+            <button class="btn btn-primary btn-sm" id="findBtn" onclick="findCustomers()">Find customers today</button>
+            <span style="color:var(--text-faint); font-size:12.5px;">It can take a minute. One search per day (a search that finds nothing does not count).</span>
+          </div>
+          <p class="form-error" id="leadError" role="alert" style="margin-top:12px;"></p>
+          <div style="font-size:12.5px; color:var(--text-dim); padding:10px 14px; border:1px dashed var(--border-strong); border-radius:10px; margin-top:6px;">
+            <strong style="color:var(--text);">How this works.</strong> Only public pages are used. Businesses are shown by name. For people we show the public post and its link, never their name, email or phone. Nothing is sent for you: you write to each lead yourself. Please do not message people who have not asked to hear from you: WhatsApp and email rules require consent.
+            "High intent" means the page shows a clear need, a date or a budget. It is never a guarantee, so check each lead before you spend time.
+          </div>
         </div>
         <div class="panel">
           <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:6px;">
-            <h3 style="margin:0;">2. Find new customers</h3>
-            <button class="btn btn-primary btn-sm" id="findBtn" onclick="findCustomers()">Find customers today</button>
+            <h3 style="margin:0;">Ideas: who usually buys from you</h3>
+            <button class="btn btn-ghost btn-sm" id="icpBtn" onclick="buildIcp()">Suggest customer types</button>
           </div>
-          <p style="color:var(--text-dim); font-size:13.5px; margin-bottom:10px;">The AI looks for businesses that need what you sell, and for public posts where someone says they are looking for it. It can take a minute. One search per day.</p>
-          <div style="font-size:12.5px; color:var(--text-dim); padding:10px 14px; border:1px dashed var(--border-strong); border-radius:10px;">
-            <strong style="color:var(--text);">How this works.</strong> Only public pages are used. We never collect emails, phone numbers or names of private people, and nothing is sent for you: you write to each lead yourself. Please do not message people who have not asked to hear from you: WhatsApp and email rules require consent.
-            "High intent" means the page shows a clear need, a date or a budget. It is never a guarantee, so check each lead before you spend time.
-          </div>
-          <p class="form-error" id="leadError" role="alert" style="margin-top:12px;"></p>
+          <p class="form-error" id="icpError" role="alert"></p>
+          <div id="icpBox"><p class="empty-note">Not sure who to target? Click “Suggest customer types”. The ideas appear here and above, and you pick what fits.</p></div>
         </div>
         <div class="tabs" id="leadTabs"></div>
         <div id="leadList"></div>
@@ -1685,7 +1695,7 @@ function showPage(name){
   if(name === 'dashboard' || name === 'campaigns') refreshData();
   if(name === 'campaigns') loadAdvice(false);
   if(name === 'competitors'){ fillAbout(); loadCompetitors(); }
-  if(name === 'customers') loadLeads();
+  if(name === 'customers'){ targetFilled = false; loadLeads(); }
   if(name === 'analytics') loadReports();
 }
 function showToast(msg){
@@ -2322,7 +2332,59 @@ const SIGNAL_LABELS = {
   request: { explicit_request: 'Asked for it', timeframe: 'Has a date or urgency', budget: 'Mentioned a budget', local_match: 'In your market', active: 'Recent' },
   business: { clear_need: 'Clear gap your offer fills', local_match: 'In your market', active: 'Active', budget: 'Looks able to pay' }
 };
+/* generic chip input (type, press Enter or comma): used for kinds of customers and countries */
+function makeChipInput(inputEl, chipsEl, boxEl, max, onFull){
+  let items = [];
+  const render = ()=>{
+    chipsEl.innerHTML = '';
+    items.forEach((c, i)=>{
+      const chip = document.createElement('span'); chip.className = 'chip';
+      const t = document.createElement('span'); t.textContent = c;
+      const x = document.createElement('button'); x.type = 'button'; x.setAttribute('aria-label','Remove ' + c); x.textContent = '×';
+      x.addEventListener('click', ()=>{ items.splice(i, 1); render(); });
+      chip.appendChild(t); chip.appendChild(x); chipsEl.appendChild(chip);
+    });
+  };
+  const add = (raw)=>{
+    const v = (raw || '').trim(); if(!v) return;
+    if(items.some(c=>c.toLowerCase() === v.toLowerCase())) return;
+    if(items.length >= max){ if(onFull) onFull(); return; }
+    items.push(v); render();
+  };
+  const flush = ()=>{ add(inputEl.value); inputEl.value = ''; };
+  inputEl.addEventListener('keydown', e=>{
+    if(e.key === 'Enter' || e.key === ','){ e.preventDefault(); flush(); }
+    else if(e.key === 'Backspace' && !inputEl.value && items.length){ items.pop(); render(); }
+  });
+  inputEl.addEventListener('change', flush); inputEl.addEventListener('blur', flush);
+  boxEl.addEventListener('click', ()=>inputEl.focus());
+  return { get: ()=>{ flush(); return items.slice(); }, set: (list)=>{ items = (list || []).slice(0, max); render(); }, add };
+}
+const tgType = makeChipGroup($('tgType'), ['Individuals','Businesses','Both'], ['Individuals','Businesses','Both']);
+const tgSegments = makeChipInput($('tgSeg'), $('tgSegChips'), $('tgSegBox'), 4, ()=>setError('leadError','Choose up to 4 kinds of customers.'));
+const tgCountries = makeChipInput($('tgCty'), $('tgCtyChips'), $('tgCtyBox'), 6, ()=>setError('leadError','Choose up to 6 countries.'));
+let targetFilled = false;
+function fillTarget(target){
+  const t = target || {};
+  tgType.set(t.customer_type || '');
+  tgSegments.set(t.segments || []);
+  const markets = ((me && me.business && me.business.country) || '').split('|').map(x=>x.trim()).filter(Boolean);
+  tgCountries.set((t.countries && t.countries.length) ? t.countries : markets);
+  $('tgNotes').value = t.notes || '';
+}
+function renderSuggestions(icp){
+  const box = $('tgSuggest'); box.innerHTML = '';
+  const segs = (icp && icp.segments) || [];
+  if(!segs.length){ box.style.display = 'none'; return; }
+  box.style.display = 'block';
+  const l = document.createElement('span'); l.style.cssText = 'font-size:12.5px; color:var(--text-faint); margin-right:8px;'; l.textContent = 'Ideas, click to add:'; box.appendChild(l);
+  segs.forEach(x=>{
+    const b = document.createElement('button'); b.type = 'button'; b.className = 'pick'; b.style.cssText = 'margin:3px 6px 3px 0; padding:5px 12px; font-size:12.5px;';
+    b.textContent = '+ ' + x.name; b.addEventListener('click', ()=>{ setError('leadError',''); tgSegments.add(x.name); }); box.appendChild(b);
+  });
+}
 function renderIcp(icp){
+  renderSuggestions(icp);
   const box = $('icpBox');
   box.innerHTML = '';
   if(!icp){ box.innerHTML = '<p class="empty-note">Not built yet. It uses what you wrote in Competitors &gt; About your business.</p>'; return; }
@@ -2342,6 +2404,7 @@ async function loadLeads(){
   try{
     const r = await api('GET','/leads');
     leads = r.leads; renderIcp(r.icp); renderLeads();
+    if(!targetFilled){ fillTarget(r.target); targetFilled = true; }
   }catch(e){ setError('leadError', e.message); }
 }
 async function buildIcp(){
@@ -2353,11 +2416,15 @@ async function buildIcp(){
 }
 async function findCustomers(){
   setError('leadError','');
+  const target = { customer_type: tgType.get(), segments: tgSegments.get(), countries: tgCountries.get(), notes: $('tgNotes').value };
+  if(!target.countries.length){ setError('leadError','Choose at least one country to search in.'); return; }
   const btn = $('findBtn'); busy(btn, true); const label = btn.textContent; btn.textContent = 'Searching the web…';
   try{
-    const r = await api('POST','/leads/find');
+    const r = await api('POST','/leads/find',{ target });
     if(r.added.length) showToast('Found ' + r.added.length + ' possible customer(s).');
-    else setError('leadError', r.found > 0 ? 'Everything the AI found is already in your list, or its links did not work.' : 'No solid leads found today. Add more detail about your offer and markets, then try tomorrow.');
+    else setError('leadError', r.found > 0
+      ? 'The AI found results, but none were new, in your countries, or with a working link.'
+      : 'The AI searched but found nothing matching. Try broader kinds of customers or another country. This did not use up today\'s search.');
     await loadLeads();
   }catch(e){ setError('leadError', e.message); }
   btn.textContent = label; busy(btn, false);

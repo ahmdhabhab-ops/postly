@@ -126,8 +126,8 @@ test('find: searches the web, verifies links, scores from evidence, drops dead l
 
 test('find: once per day, failures give the slot back, operators exempt, needs AI + a profile', async () => {
   const c = await signup('f2@z.com');
-  script = [txt('{"summary":"s","segments":[{"name":"P"}]}'), txt('[]')];
-  assert.equal((await c.post('/api/leads/find')).status, 200);
+  script = [txt('{"summary":"s","segments":[{"name":"P"}]}'), txt(JSON.stringify([lead({ url: 'https://day1.example/' })]))];
+  assert.equal((await c.post('/api/leads/find')).json.added.length, 1);
   const again = await c.post('/api/leads/find');
   assert.equal(again.status, 429); assert.match(again.json.error, /once per day/);
 
@@ -196,4 +196,61 @@ test('URL input: bare domains get https, every other scheme is rejected (not rew
   assert.equal((await c.post('/api/competitors', { name: 'X', url: 'file:///etc/passwd' })).status, 400);
   assert.equal((await c.post('/api/competitors', { name: 'X', url: 'javascript:alert(1)' })).status, 400);
   assert.equal((await c.post('/api/competitors', { name: 'X', url: 'riverstone.example' })).status, 201);
+});
+
+import { sanitizeTarget, matchMarket } from '../src/leads.js';
+
+test('target: sanitised, scrubbed, limited; markets fall back to the business markets', () => {
+  const t = sanitizeTarget({ customer_type: 'Individuals', segments: ['Engaged couples', 'mail me at a@b.com', 'x'.repeat(500), 'c', 'd', 'e'], countries: ['Lebanon', 'Lebanon', ' Qatar ', '', 'A', 'B', 'C', 'D', 'E'], notes: 'call 70 123 456' });
+  assert.equal(t.customer_type, 'Individuals');
+  assert.equal(t.segments.length, 4);
+  assert.ok(t.segments.every((x) => x.length <= 160) && !/a@b\.com/.test(t.segments.join()));
+  assert.deepEqual(t.countries.slice(0, 2), ['Lebanon', 'Qatar']);
+  assert.equal(t.countries.length, 6);
+  assert.ok(!/70 123/.test(t.notes));
+  assert.equal(sanitizeTarget({ customer_type: 'Aliens' }).customer_type, '');
+  assert.deepEqual(sanitizeTarget({}, ['Lebanon', 'UAE']).countries, ['Lebanon', 'UAE']);
+  assert.equal(matchMarket('anything', ['Lebanon']), 'Lebanon');                       // single country is forced
+  assert.equal(matchMarket('Beirut, Lebanon', ['Lebanon', 'Qatar']), 'Lebanon');
+  assert.equal(matchMarket('qatar', ['Lebanon', 'Qatar']), 'Qatar');
+  assert.equal(matchMarket('United States', ['Lebanon', 'Qatar']), null);
+  assert.equal(matchMarket('', ['Lebanon', 'Qatar']), null);
+});
+
+test('find follows the target the owner chose: prompt, country filter, stored for next time', async () => {
+  const c = await signup('tg1@z.com');
+  await c.put('/api/business', { country: 'Lebanon | Qatar | United States' });      // business markets are wider than the target
+  calls = []; pages = {};
+  script = [txt('{"summary":"s","segments":[{"name":"P"}]}'), txt(JSON.stringify([
+    lead({ name: 'Beirut Planner', url: 'https://t1.example/', market: 'Lebanon' }),
+    lead({ name: 'Doha Planner', url: 'https://t2.example/', market: 'Qatar' }),
+    lead({ name: 'Texas Planner', url: 'https://t3.example/', market: 'United States' }),
+    lead({ name: 'No Market', url: 'https://t4.example/', market: '' }),
+  ]))];
+  const r = await c.post('/api/leads/find', { target: { customer_type: 'Businesses', segments: ['Wedding planners'], countries: ['Lebanon', 'Qatar'], notes: 'with a public contact form' } });
+  assert.equal(r.status, 200);
+  assert.deepEqual(r.json.added.map((x) => [x.name, x.market]).sort(), [['Beirut Planner', 'Lebanon'], ['Doha Planner', 'Qatar']]);   // US and market-less dropped
+  const search = calls.find((x) => x.tools?.[0]?.name === 'web_search');
+  assert.match(search.messages[0].content, /TARGET \(follow strictly\): customer type: Businesses; kinds of customers: Wedding planners; countries: Lebanon, Qatar; extra notes: with a public contact form/);
+  assert.doesNotMatch(search.messages[0].content, /United States, /);
+  assert.match(search.system, /only the customer type, kinds of customers and countries they chose/);
+  assert.match(search.system, /"market" must be exactly one of the target countries/);
+  assert.match(search.system, /Return \[\] only if your searches found nothing relevant at all/);
+  const saved = (await c.get('/api/leads')).json.target;
+  assert.deepEqual(saved.countries, ['Lebanon', 'Qatar']);
+  assert.equal(saved.customer_type, 'Businesses');
+  assert.ok(!('lead_target' in (await c.get('/api/me')).json.business));
+});
+
+test('find: a search that delivers nothing does not use up the day; no country at all is refused', async () => {
+  const c = await signup('tg2@z.com');
+  script = [txt('{"summary":"s","segments":[{"name":"P"}]}'), txt('Nothing relevant.'), txt('[]')];
+  const a = await c.post('/api/leads/find');
+  assert.equal(a.status, 200); assert.equal(a.json.added.length, 0);
+  assert.equal((await c.post('/api/leads/find')).status, 200);                       // not 429: nothing was delivered
+  const none = await signup('tg3@z.com', false);
+  await none.put('/api/business', { description: 'wedding invites' });                // no country anywhere
+  const r = await none.post('/api/leads/find', { target: { countries: [] } });
+  assert.equal(r.status, 400);
+  assert.match(r.json.error, /at least one country/);
 });
