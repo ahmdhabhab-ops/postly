@@ -54,7 +54,7 @@ function fallbackReply(text, campaign) {
 const clip = (v, n) => String(v ?? '').replace(/\s+/g, ' ').trim().slice(0, n);
 
 // Everything we know about the business, as plain text for the model. Only data the user entered or that we fetched.
-export function buildAssistantContext({ business: b = {}, competitors = [], campaigns = [], websiteNotes = [], advice = [] }) {
+export function buildAssistantContext({ business: b = {}, competitors = [], campaigns = [], websiteNotes = [], advice = [], icp = null }) {
   const markets = String(b.country || '').split('|').map((x) => x.trim()).filter(Boolean).join(', ');
   const lines = [
     `Business name: ${b.name || 'unknown'}`,
@@ -72,6 +72,9 @@ export function buildAssistantContext({ business: b = {}, competitors = [], camp
   lines.push(advice.length
     ? `Channel advice already given to the owner (best first):\n${advice.map((a) => `- ${a.platform}: ${a.fit}${a.budget_share ? ` (${a.budget_share}% of budget)` : ''} - ${clip(a.why, 160)}`).join('\n')}`
     : 'Channel advice: none yet (the owner can generate it in Campaigns > "Where should you advertise?").');
+  if (icp?.segments?.length) {
+    lines.push(`Ideal new customers (from the customer profile):\n${icp.segments.slice(0, 3).map((x) => `- ${x.name}: ${clip(x.who, 140)}`).join('\n')}`);
+  }
   if (competitors.length) {
     lines.push('Tracked competitors:');
     for (const c of competitors.slice(0, 8)) {

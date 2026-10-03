@@ -10,11 +10,12 @@ import {
   destroySession, sessionLoader, requireUser, csrfGuard, currentTokenHash,
 } from './auth.js';
 import { assistantReply, draftFor, buildAssistantContext } from './assistant.js';
-import { fetchPublicPage, parsePublicUrl, FetchBlockedError } from './safefetch.js';
+import { fetchPublicPage, parsePublicUrl, withHttps, FetchBlockedError } from './safefetch.js';
 import { analyzeCompetitor, buildStats, writeReport, discoverCompetitors } from './insights.js';
 import { extractPage } from './safefetch.js';
 import { buildPlanWorkbook, safeFilename } from './export.js';
 import { generateChannelAdvice } from './advice.js';
+import { generateIcp, findLeads, sanitizeLead, scoreLead, regenerateMessage, STATUSES, LANGUAGES, hostOf } from './leads.js';
 import { generateBrief, siteSignals, websiteNotes, sanitizeBrief, classifyFetchError } from './brief.js';
 
 const EMAIL = /^[^\s@]{1,64}@[^\s@]{1,255}\.[^\s@]{2,}$/;
@@ -143,7 +144,7 @@ export function createApp(cfg, { pool, wa = createWhatsAppClient(cfg.whatsapp), 
   async function meResponse(userId) {
     const u = (await pool.query('select id,email,first_name,last_name,phone from users where id=$1', [userId])).rows[0];
     const business = (await pool.query('select * from businesses where user_id=$1', [userId])).rows[0] ?? null;
-    if (business) { delete business.site_text; delete business.last_discovery_at; delete business.site_fetched_at; delete business.site_signals; delete business.channel_advice; delete business.channel_advice_ai; delete business.channel_advice_at; } // internal cache of the user's own site text
+    if (business) { delete business.site_text; delete business.last_discovery_at; delete business.site_fetched_at; delete business.site_signals; delete business.channel_advice; delete business.channel_advice_ai; delete business.channel_advice_at; delete business.icp; delete business.icp_ai; delete business.last_prospect_at; } // internal cache of the user's own site text
     return { user: { id: u.id, email: u.email, firstName: u.first_name, lastName: u.last_name, phone: u.phone, canSendWhatsApp: isAdmin(u.email) }, business, help: { name: cfg.helpName, url: cfg.helpUrl } };
   }
   const isAdmin = (email) => cfg.adminEmails.includes(String(email).toLowerCase());
@@ -298,7 +299,7 @@ export function createApp(cfg, { pool, wa = createWhatsAppClient(cfg.whatsapp), 
       return { campaign: row, reused: false };
     };
     const camps = await pool.query('select title, platform, status, budget_per_day, duration_days from campaigns where user_id=$1 order by created_at desc limit 8', [req.user.id]);
-    const context = buildAssistantContext({ business, competitors: comps, campaigns: camps.rows, websiteNotes: notesFor(business), advice: adviceOf(business) });
+    const context = buildAssistantContext({ business, competitors: comps, campaigns: camps.rows, websiteNotes: notesFor(business), advice: adviceOf(business), icp: icpOf(business) });
     const { reply, campaign } = await assistantReply({ cfg, context, history, text, createDraft, fetchImpl });
     await pool.query('insert into chat_messages(user_id, role, content) values ($1,$2,$3), ($1,$4,$5)', [req.user.id, 'user', text, 'assistant', reply]);
     res.json({ reply, campaign: campaign ? campaignOut(campaign, business) : null });
@@ -383,8 +384,7 @@ export function createApp(cfg, { pool, wa = createWhatsAppClient(cfg.whatsapp), 
       const name = typeof c?.name === 'string' ? c.name.trim().slice(0, 100) : '';
       let url = typeof c?.url === 'string' ? c.url.trim().slice(0, 300) : '';
       if (!name || !url) continue;
-      if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
-      try { parsePublicUrl(url); } catch { continue; }
+      try { url = withHttps(url); parsePublicUrl(url); } catch { continue; }
       const host = hostOf(url);
       if (!host || seen.has(host)) continue;
       seen.add(host); slots--;
@@ -402,8 +402,7 @@ export function createApp(cfg, { pool, wa = createWhatsAppClient(cfg.whatsapp), 
     const name = str(req.body?.name, 100, 'name');
     let url = str(req.body?.url, 300, 'url');
     if (!name || !url) throw new ValidationError('Name and website are required');
-    if (!/^https?:\/\//i.test(url)) url = `https://${url}`;
-    try { parsePublicUrl(url); } catch (e) { throw new ValidationError(e.message); }
+    try { url = withHttps(url); parsePublicUrl(url); } catch (e) { throw new ValidationError(e.message); }
     const n = (await pool.query('select count(*)::int as n from competitors where user_id=$1', [req.user.id])).rows[0].n;
     if (n >= 10) throw new ValidationError('You can track up to 10 competitors');
     const { rows } = await pool.query('insert into competitors(id,user_id,name,url) values ($1,$2,$3,$4) returning *', [crypto.randomUUID(), req.user.id, name, url]);
@@ -428,6 +427,127 @@ export function createApp(cfg, { pool, wa = createWhatsAppClient(cfg.whatsapp), 
     const { rows } = await pool.query('update competitors set analysis=$3, analyzed_at=now() where id=$1 and user_id=$2 returning *', [c.id, req.user.id, result.text]);
     await log(req.user.id, `Analysed competitor ${c.name}`);
     res.json({ competitor: competitorRow(rows[0]), ai: result.ai });
+  }));
+
+  // --- new customers (prospecting) ---
+  const icpOf = (b) => { try { return b?.icp ? JSON.parse(b.icp) : null; } catch { return null; } };
+  const leadOut = (r) => {
+    let signals = {}; try { signals = JSON.parse(r.signals); } catch { /* keep {} */ }
+    const { signals: _s, ...rest } = r;
+    return { ...rest, signals };
+  };
+  api.get('/leads', requireUser, wrap(async (req, res) => {
+    const b = (await pool.query('select * from businesses where user_id=$1', [req.user.id])).rows[0];
+    const { rows } = await pool.query('select * from leads where user_id=$1 order by score desc, created_at desc limit 100', [req.user.id]);
+    res.json({ leads: rows.map(leadOut), icp: icpOf(b), icp_ai: Boolean(b?.icp_ai) });
+  }));
+
+  api.post('/leads/profile', requireUser, aiLimiter, wrap(async (req, res) => {
+    const business = (await pool.query('select * from businesses where user_id=$1', [req.user.id])).rows[0];
+    if (!business || (!business.description && !business.website)) throw new ValidationError('Describe your business or add your website first (Competitors > About your business)');
+    await refreshSiteText(req.user.id, business);
+    const comps = (await pool.query('select name from competitors where user_id=$1 order by created_at limit 5', [req.user.id])).rows;
+    const { icp, ai } = await generateIcp({ cfg, business, competitors: comps, fetchImpl });
+    await pool.query('update businesses set icp=$2, icp_ai=$3 where user_id=$1', [req.user.id, JSON.stringify(icp), ai]);
+    await log(req.user.id, 'Built your ideal customer profile');
+    res.json({ icp, icp_ai: ai });
+  }));
+
+  api.post('/leads/find', requireUser, aiLimiter, wrap(async (req, res) => {
+    if (!cfg.anthropicApiKey) return res.status(503).json({ error: 'AI is not enabled on this server (ANTHROPIC_API_KEY missing)' });
+    const business = (await pool.query('select * from businesses where user_id=$1', [req.user.id])).rows[0];
+    if (!business || (!business.description && !business.website)) throw new ValidationError('Describe your business or add your website first (Competitors > About your business)');
+    const have = (await pool.query('select count(*)::int as n from leads where user_id=$1', [req.user.id])).rows[0].n;
+    if (have >= 100) throw new ValidationError('You have 100 saved customers. Remove some before searching again.');
+    // One AI search per 24h per user (operators exempt); a failed search gives the slot back.
+    const operator = isAdmin(req.user.email);
+    const prev = business.last_prospect_at;
+    if (!operator) {
+      const claim = await pool.query(
+        `update businesses set last_prospect_at = now()
+          where user_id = $1 and (last_prospect_at is null or last_prospect_at < now() - interval '24 hours') returning 1`, [req.user.id]);
+      if (!claim.rowCount) {
+        const hrs = Math.max(1, Math.ceil((new Date(prev).getTime() + 86_400_000 - Date.now()) / 3_600_000));
+        return res.status(429).json({ error: `Customer search can run once per day to keep costs low. Try again in about ${hrs} hour${hrs === 1 ? '' : 's'}.` });
+      }
+    }
+    const refund = () => (operator ? null : pool.query('update businesses set last_prospect_at = $2 where user_id = $1', [req.user.id, prev]));
+    try {
+      await refreshSiteText(req.user.id, business);
+      let icp = icpOf(business);
+      if (!icp) {
+        const g = await generateIcp({ cfg, business, fetchImpl });
+        icp = g.icp;
+        await pool.query('update businesses set icp=$2, icp_ai=$3 where user_id=$1', [req.user.id, JSON.stringify(icp), g.ai]);
+      }
+      const comps = (await pool.query('select url from competitors where user_id=$1', [req.user.id])).rows;
+      const known = (await pool.query('select domain from leads where user_id=$1', [req.user.id])).rows.map((r) => r.domain);
+      const skipHosts = new Set([hostOf(/^https?:/i.test(business.website || '') ? business.website : `https://${business.website || ''}`), ...comps.map((c) => hostOf(c.url))].filter(Boolean));
+      const found = await findLeads({ cfg, business, icp, existingHosts: [...skipHosts, ...known], fetchImpl });
+      if (found === null) { await refund(); return res.status(502).json({ error: 'The AI search did not respond. Try again in a minute.' }); }
+
+      // keep well-formed, new candidates (max 8), then check that each link is real
+      const seenUrls = new Set((await pool.query('select url from leads where user_id=$1', [req.user.id])).rows.map((r) => r.url));
+      const cands = [];
+      for (const raw of found) {
+        const c = sanitizeLead(raw);
+        if (!c || seenUrls.has(c.url) || skipHosts.has(c.domain)) continue;
+        seenUrls.add(c.url); cands.push(c);
+        if (cands.length >= 8) break;
+      }
+      const checks = await Promise.allSettled(cands.map((c) => fetchPage(c.url)));
+      const added = [];
+      for (let i = 0; i < cands.length; i++) {
+        const c = cands[i];
+        const ch = checks[i];
+        if (ch.status === 'rejected') {
+          const why = classifyFetchError(ch.reason);
+          if (why === 'dns' || why === 'gone') continue;           // link does not exist: drop it
+        }
+        const verified = ch.status === 'fulfilled';
+        const { score, intent } = scoreLead(c.kind, c.signals, verified);
+        const { rows } = await pool.query(
+          `insert into leads(id,user_id,kind,name,url,domain,market,why,evidence,signals,score,intent,verified,message,channel)
+           values ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) on conflict (user_id,url) do nothing returning *`,
+          [crypto.randomUUID(), req.user.id, c.kind, c.name, c.url, c.domain, c.market, c.why, c.evidence, JSON.stringify(c.signals), score, intent, verified, c.message, c.channel]);
+        if (rows[0]) added.push(leadOut(rows[0]));
+      }
+      await log(req.user.id, `Found ${added.length} possible new customer(s)`);
+      res.json({ added, found: found.length });
+    } catch (e) { await refund(); throw e; }
+  }));
+
+  api.patch('/leads/:id', requireUser, writeLimiter, wrap(async (req, res) => {
+    if (!/^[0-9a-f-]{36}$/.test(req.params.id)) return res.status(404).json({ error: 'Not found' });
+    const sets = []; const vals = [req.params.id, req.user.id];
+    if (req.body?.status !== undefined) {
+      if (!STATUSES.includes(req.body.status)) throw new ValidationError('Unknown status');
+      vals.push(req.body.status); sets.push(`status = $${vals.length}`);
+    }
+    if (req.body?.notes !== undefined) { vals.push(str(req.body.notes, 1000, 'notes')); sets.push(`notes = $${vals.length}`); }
+    if (!sets.length) throw new ValidationError('Nothing to update');
+    const { rows } = await pool.query(`update leads set ${sets.join(', ')} where id=$1 and user_id=$2 returning *`, vals);
+    if (!rows[0]) return res.status(404).json({ error: 'Not found' });
+    res.json({ lead: leadOut(rows[0]) });
+  }));
+
+  api.delete('/leads/:id', requireUser, writeLimiter, wrap(async (req, res) => {
+    if (!/^[0-9a-f-]{36}$/.test(req.params.id)) return res.status(404).json({ error: 'Not found' });
+    await pool.query('delete from leads where id=$1 and user_id=$2', [req.params.id, req.user.id]);
+    res.json({ ok: true });
+  }));
+
+  api.post('/leads/:id/message', requireUser, aiLimiter, wrap(async (req, res) => {
+    if (!/^[0-9a-f-]{36}$/.test(req.params.id)) return res.status(404).json({ error: 'Not found' });
+    const language = LANGUAGES.find((l) => l === req.body?.language);
+    if (!language) throw new ValidationError('Choose English, Arabic or French');
+    const lead = (await pool.query('select * from leads where id=$1 and user_id=$2', [req.params.id, req.user.id])).rows[0];
+    if (!lead) return res.status(404).json({ error: 'Not found' });
+    const business = (await pool.query('select * from businesses where user_id=$1', [req.user.id])).rows[0];
+    const message = await regenerateMessage({ cfg, business, lead, language, fetchImpl });
+    if (!message) return res.status(502).json({ error: 'Could not write the message. Try again.' });
+    const { rows } = await pool.query('update leads set message=$3 where id=$1 and user_id=$2 returning *', [lead.id, req.user.id, message]);
+    res.json({ lead: leadOut(rows[0]) });
   }));
 
   // --- reports ---

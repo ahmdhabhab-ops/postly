@@ -35,6 +35,14 @@ function guardedLookup(hostname, options, cb) {
   });
 }
 
+// "example.com/x" -> "https://example.com/x"; any other scheme (file:, ftp:, javascript:, ...) is rejected, never rewritten.
+export function withHttps(input) {
+  const v = String(input ?? '').trim();
+  if (/^https?:\/\//i.test(v)) return v;
+  if (/^[a-z][a-z0-9+.-]*:(\/\/|[^0-9])/i.test(v)) throw new FetchBlockedError('Only http(s) URLs are allowed');
+  return `https://${v}`;
+}
+
 export function parsePublicUrl(input) {
   let u;
   try { u = new URL(input); } catch { throw new FetchBlockedError('Invalid URL'); }

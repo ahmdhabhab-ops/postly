@@ -606,6 +606,7 @@ input:focus,select:focus,textarea:focus{outline:none; border-color:var(--violet)
 <symbol id="i-target" viewBox="0 0 18 18"><circle cx="9" cy="9" r="6.6"/><circle cx="9" cy="9" r="3.4"/><circle cx="9" cy="9" r="0.7" fill="currentColor" stroke="none"/></symbol>
 <symbol id="i-layers" viewBox="0 0 18 18"><path d="M9 2 2 6l7 4 7-4-7-4z"/><path d="M2 10l7 4 7-4"/></symbol>
 <symbol id="i-broadcast" viewBox="0 0 18 18"><circle cx="9" cy="9" r="1.5"/><path d="M5.6 5.6a4.7 4.7 0 000 6.8"/><path d="M12.4 5.6a4.7 4.7 0 010 6.8"/><path d="M3.2 3.2a8.6 8.6 0 000 11.6"/><path d="M14.8 3.2a8.6 8.6 0 010 11.6"/></symbol>
+<symbol id="i-users" viewBox="0 0 18 18"><circle cx="7" cy="6" r="2.6"/><path d="M2 15c0-2.8 2.2-4.6 5-4.6s5 1.8 5 4.6"/><circle cx="13" cy="6.8" r="1.9"/><path d="M13.4 10.5c1.7.2 3 1.4 3 3.6"/></symbol>
 <symbol id="i-radar" viewBox="0 0 18 18"><circle cx="9" cy="9" r="6.6"/><circle cx="9" cy="9" r="3.8"/><circle cx="9" cy="9" r="0.9" fill="currentColor" stroke="none"/><line x1="9" y1="9" x2="13.5" y2="4.5"/></symbol>
 <symbol id="i-orbit" viewBox="0 0 18 18"><circle cx="9" cy="9" r="1.4" fill="currentColor" stroke="none"/><ellipse cx="9" cy="9" rx="7.6" ry="3"/><ellipse cx="9" cy="9" rx="3" ry="7.6" transform="rotate(45 9 9)"/></symbol>
 <symbol id="i-bars" viewBox="0 0 18 18"><line x1="3" y1="15" x2="3" y2="9"/><line x1="9" y1="15" x2="9" y2="4"/><line x1="15" y1="15" x2="15" y2="11"/></symbol>
@@ -1107,6 +1108,7 @@ input:focus,select:focus,textarea:focus{outline:none; border-color:var(--violet)
       <a class="side-link" data-page="content" onclick="showPage('content')"><span class="ico"><svg class="i"><use href="#i-layers"/></svg></span>Content</a>
       <a class="side-link" data-page="ads" onclick="showPage('ads')"><span class="ico"><svg class="i"><use href="#i-broadcast"/></svg></span>Ads</a>
       <a class="side-link" data-page="competitors" onclick="showPage('competitors')"><span class="ico"><svg class="i"><use href="#i-radar"/></svg></span>Competitors</a>
+      <a class="side-link" data-page="customers" onclick="showPage('customers')"><span class="ico"><svg class="i"><use href="#i-users"/></svg></span>Customers</a>
       <a class="side-link" data-page="aisearch" onclick="showPage('aisearch')"><span class="ico"><svg class="i"><use href="#i-orbit"/></svg></span>AI Search</a>
       <a class="side-link" data-page="analytics" onclick="showPage('analytics')"><span class="ico"><svg class="i"><use href="#i-bars"/></svg></span>Analytics</a>
       <a class="side-link" data-page="billing" onclick="showPage('billing')"><span class="ico"><svg class="i"><use href="#i-card"/></svg></span>Billing</a>
@@ -1277,6 +1279,33 @@ input:focus,select:focus,textarea:focus{outline:none; border-color:var(--violet)
           <button class="btn btn-primary btn-sm" id="compAddBtn" onclick="addCompetitor()">Add competitor</button>
         </div>
         <div id="competitorList"></div>
+      </div>
+
+      <!-- Customers -->
+      <div class="app-page" id="page-customers">
+        <div class="page-head"><div><h1>New customers</h1><p>Your AI team searches the public web for people and businesses likely to buy from you. You contact them yourself.</p></div></div>
+        <div class="panel">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:6px;">
+            <h3 style="margin:0;">1. Your ideal customer</h3>
+            <button class="btn btn-ghost btn-sm" id="icpBtn" onclick="buildIcp()">Build my customer profile</button>
+          </div>
+          <p class="form-error" id="icpError" role="alert"></p>
+          <div id="icpBox"><p class="empty-note">Not built yet. It uses what you wrote in Competitors &gt; About your business.</p></div>
+        </div>
+        <div class="panel">
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:6px;">
+            <h3 style="margin:0;">2. Find new customers</h3>
+            <button class="btn btn-primary btn-sm" id="findBtn" onclick="findCustomers()">Find customers today</button>
+          </div>
+          <p style="color:var(--text-dim); font-size:13.5px; margin-bottom:10px;">The AI looks for businesses that need what you sell, and for public posts where someone says they are looking for it. It can take a minute. One search per day.</p>
+          <div style="font-size:12.5px; color:var(--text-dim); padding:10px 14px; border:1px dashed var(--border-strong); border-radius:10px;">
+            <strong style="color:var(--text);">How this works.</strong> Only public pages are used. We never collect emails, phone numbers or names of private people, and nothing is sent for you: you write to each lead yourself. Please do not message people who have not asked to hear from you: WhatsApp and email rules require consent.
+            "High intent" means the page shows a clear need, a date or a budget. It is never a guarantee, so check each lead before you spend time.
+          </div>
+          <p class="form-error" id="leadError" role="alert" style="margin-top:12px;"></p>
+        </div>
+        <div class="tabs" id="leadTabs"></div>
+        <div id="leadList"></div>
       </div>
 
       <!-- AI Search -->
@@ -1572,6 +1601,7 @@ function showPage(name){
   if(name === 'dashboard' || name === 'campaigns') refreshData();
   if(name === 'campaigns') loadAdvice(false);
   if(name === 'competitors'){ fillAbout(); loadCompetitors(); }
+  if(name === 'customers') loadLeads();
   if(name === 'analytics') loadReports();
 }
 function showToast(msg){
@@ -2188,6 +2218,125 @@ async function generateReport(){
   try{ await api('POST','/reports'); await loadReports(); }
   catch(e){ setError('reportError', e.message); }
   btn.textContent = label; busy(btn, false);
+}
+
+/* ---------- new customers ---------- */
+let leads = [];
+let leadFilter = 'all';
+const openMsgs = new Set();   // lead ids whose message box the user has open, kept across re-renders
+const SIGNAL_LABELS = {
+  request: { explicit_request: 'Asked for it', timeframe: 'Has a date or urgency', budget: 'Mentioned a budget', local_match: 'In your market', active: 'Recent' },
+  business: { clear_need: 'Clear gap your offer fills', local_match: 'In your market', active: 'Active', budget: 'Looks able to pay' }
+};
+function renderIcp(icp){
+  const box = $('icpBox');
+  box.innerHTML = '';
+  if(!icp){ box.innerHTML = '<p class="empty-note">Not built yet. It uses what you wrote in Competitors &gt; About your business.</p>'; return; }
+  const sum = document.createElement('p'); sum.style.cssText = 'font-size:14px; margin-bottom:10px;'; sum.textContent = icp.summary; box.appendChild(sum);
+  (icp.segments || []).forEach(x=>{
+    const row = document.createElement('div'); row.style.cssText = 'padding:12px 0; border-top:1px solid var(--border);';
+    const t = document.createElement('div'); t.style.fontWeight = '600'; t.textContent = x.name; row.appendChild(t);
+    const w = document.createElement('div'); w.style.cssText = 'font-size:13.5px; color:var(--text-dim); margin-top:3px;'; w.textContent = x.who; row.appendChild(w);
+    if(x.why_they_buy){ const y = document.createElement('div'); y.style.cssText = 'font-size:13px; color:var(--text-faint); margin-top:3px;'; y.textContent = 'Why they buy: ' + x.why_they_buy; row.appendChild(y); }
+    if(x.where_to_find && x.where_to_find.length){ const f = document.createElement('div'); f.style.cssText = 'font-size:13px; color:var(--text-faint); margin-top:3px;'; f.textContent = 'Where to find them: ' + x.where_to_find.join(', '); row.appendChild(f); }
+    box.appendChild(row);
+  });
+  if(icp.triggers && icp.triggers.length) planList(box, 'Signs someone is ready to buy', icp.triggers);
+  if(icp.avoid && icp.avoid.length) planList(box, 'Poor fit, skip', icp.avoid);
+}
+async function loadLeads(){
+  try{
+    const r = await api('GET','/leads');
+    leads = r.leads; renderIcp(r.icp); renderLeads();
+  }catch(e){ setError('leadError', e.message); }
+}
+async function buildIcp(){
+  setError('icpError','');
+  const btn = $('icpBtn'); busy(btn, true); const label = btn.textContent; btn.textContent = 'Thinking…';
+  try{ const r = await api('POST','/leads/profile'); renderIcp(r.icp); if(!r.icp_ai) setError('icpError','General profile: AI is not available right now.'); }
+  catch(e){ setError('icpError', e.message); }
+  btn.textContent = label; busy(btn, false);
+}
+async function findCustomers(){
+  setError('leadError','');
+  const btn = $('findBtn'); busy(btn, true); const label = btn.textContent; btn.textContent = 'Searching the web…';
+  try{
+    const r = await api('POST','/leads/find');
+    if(r.added.length) showToast('Found ' + r.added.length + ' possible customer(s).');
+    else setError('leadError', r.found > 0 ? 'Everything the AI found is already in your list, or its links did not work.' : 'No solid leads found today. Add more detail about your offer and markets, then try tomorrow.');
+    await loadLeads();
+  }catch(e){ setError('leadError', e.message); }
+  btn.textContent = label; busy(btn, false);
+}
+function renderLeads(){
+  const counts = { all: leads.length, high: leads.filter(l=>l.intent==='high').length, business: leads.filter(l=>l.kind==='business').length, request: leads.filter(l=>l.kind==='request').length };
+  const tabs = $('leadTabs'); tabs.innerHTML = '';
+  [['all','All'],['high','High intent'],['business','Businesses'],['request','Public requests']].forEach(([k,label])=>{
+    const t = document.createElement('span'); t.className = 'tab-btn' + (leadFilter===k ? ' active' : ''); t.textContent = label + ' (' + counts[k] + ')';
+    t.addEventListener('click', ()=>{ leadFilter = k; renderLeads(); }); tabs.appendChild(t);
+  });
+  const box = $('leadList'); box.innerHTML = '';
+  const shown = leads.filter(l=>leadFilter==='all' || (leadFilter==='high' ? l.intent==='high' : l.kind===leadFilter));
+  if(!shown.length){ box.innerHTML = '<p class="empty-note">No customers here yet. Click “Find customers today”.</p>'; return; }
+  shown.forEach(l=>box.appendChild(leadCard(l)));
+}
+function leadCard(l){
+  const card = document.createElement('div'); card.className = 'panel';
+  const head = document.createElement('div'); head.style.cssText = 'display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; align-items:flex-start;';
+  const left = document.createElement('div');
+  const t = document.createElement('div'); t.style.cssText = 'font-weight:600; font-size:15.5px;';
+  const a = document.createElement('a'); a.href = l.url; a.target = '_blank'; a.rel = 'noopener noreferrer'; a.textContent = l.name; a.style.cssText = 'text-decoration:underline;';
+  t.appendChild(a);
+  const kind = document.createElement('span'); kind.className = 'fit'; kind.textContent = l.kind === 'request' ? 'Public request' : 'Business'; t.appendChild(kind);
+  if(l.market){ const m = document.createElement('span'); m.className = 'fit'; m.textContent = l.market; t.appendChild(m); }
+  left.appendChild(t);
+  const ver = document.createElement('div'); ver.style.cssText = 'font-size:12px; color:var(--text-faint); margin-top:3px;';
+  ver.textContent = (l.verified ? 'Link checked ✓ · ' : 'We could not open the link, check it yourself · ') + l.domain; left.appendChild(ver);
+  const badge = document.createElement('span'); badge.className = 'fit ' + (l.intent === 'high' ? 'best' : l.intent === 'medium' ? 'good' : '');
+  badge.style.cssText = 'font-size:12.5px; padding:5px 12px;'; badge.textContent = (l.intent === 'high' ? 'High intent' : l.intent === 'medium' ? 'Medium intent' : 'Low intent') + ' · ' + l.score + '/100';
+  head.appendChild(left); head.appendChild(badge); card.appendChild(head);
+
+  const why = document.createElement('div'); why.style.cssText = 'margin-top:12px; font-size:14px;'; why.textContent = l.why; card.appendChild(why);
+  if(l.evidence){ const ev = document.createElement('div'); ev.style.cssText = 'margin-top:6px; font-size:13px; color:var(--text-dim); font-style:italic;'; ev.textContent = 'What we saw: ' + l.evidence; card.appendChild(ev); }
+  const sig = document.createElement('div'); sig.style.cssText = 'display:flex; flex-wrap:wrap; gap:6px; margin-top:10px;';
+  const labels = SIGNAL_LABELS[l.kind] || {};
+  Object.keys(labels).forEach(k=>{
+    const c = document.createElement('span'); c.className = 'chip'; c.style.paddingRight = '12px';
+    const on = l.signals && l.signals[k] === true; c.textContent = (on ? '✓ ' : '– ') + labels[k]; if(!on) c.style.opacity = '0.5'; sig.appendChild(c);
+  });
+  card.appendChild(sig);
+  if(l.channel){ const ch = document.createElement('div'); ch.style.cssText = 'margin-top:10px; font-size:13px; color:var(--text-dim);'; ch.textContent = 'How to reach them: ' + l.channel; card.appendChild(ch); }
+
+  if(l.message){
+    const d = document.createElement('details'); d.style.marginTop = '12px'; d.open = openMsgs.has(l.id);
+    d.addEventListener('toggle', ()=>{ if(d.open) openMsgs.add(l.id); else openMsgs.delete(l.id); });
+    const sm = document.createElement('summary'); sm.style.cssText = 'cursor:pointer; font-weight:600; font-size:13.5px;'; sm.textContent = 'Suggested first message (edit it before you send)'; d.appendChild(sm);
+    const body = document.createElement('div'); body.style.cssText = 'white-space:pre-wrap; font-size:14px; margin:10px 0; padding:12px 14px; border-radius:10px; background:var(--surface-2); direction:auto;'; body.textContent = l.message; d.appendChild(body);
+    const bar = document.createElement('div'); bar.style.cssText = 'display:flex; gap:8px; flex-wrap:wrap; align-items:center;';
+    const cp = document.createElement('button'); cp.className = 'btn btn-ghost btn-sm'; cp.textContent = 'Copy'; cp.addEventListener('click', ()=>copyText(l.message, card));
+    const sel = document.createElement('select'); sel.style.cssText = 'width:auto; padding:7px 10px; font-size:13px;';
+    ['English','Arabic','French'].forEach(x=>{ const o = document.createElement('option'); o.textContent = x; sel.appendChild(o); });
+    const rw = document.createElement('button'); rw.className = 'btn btn-ghost btn-sm'; rw.textContent = 'Rewrite in this language';
+    rw.addEventListener('click', async ()=>{
+      busy(rw, true); rw.textContent = 'Writing…';
+      try{ await api('POST','/leads/' + l.id + '/message', { language: sel.value }); await loadLeads(); }
+      catch(e){ showToast(e.message); rw.textContent = 'Rewrite in this language'; busy(rw, false); }
+    });
+    [cp, sel, rw].forEach(x=>bar.appendChild(x)); d.appendChild(bar); card.appendChild(d);
+  }
+
+  const foot = document.createElement('div'); foot.style.cssText = 'display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-top:14px; padding-top:14px; border-top:1px solid var(--border);';
+  const st = document.createElement('select'); st.style.cssText = 'width:auto; padding:7px 10px; font-size:13px;';
+  [['new','New'],['contacted','Contacted'],['replied','Replied'],['won','Won'],['not_interested','Not interested']].forEach(([v,label])=>{ const o = document.createElement('option'); o.value = v; o.textContent = label; if(l.status === v) o.selected = true; st.appendChild(o); });
+  st.addEventListener('change', async ()=>{ try{ await api('PATCH','/leads/' + l.id, { status: st.value }); l.status = st.value; showToast('Saved.'); }catch(e){ showToast(e.message); } });
+  const notes = document.createElement('input'); notes.type = 'text'; notes.maxLength = 1000; notes.placeholder = 'Your notes'; notes.value = l.notes || ''; notes.style.cssText = 'flex:1; min-width:180px; padding:8px 12px; font-size:13px;';
+  notes.addEventListener('change', async ()=>{ try{ await api('PATCH','/leads/' + l.id, { notes: notes.value }); l.notes = notes.value; showToast('Saved.'); }catch(e){ showToast(e.message); } });
+  const open = document.createElement('a'); open.className = 'btn btn-ghost btn-sm'; open.href = l.url; open.target = '_blank'; open.rel = 'noopener noreferrer'; open.textContent = 'Open page ↗';
+  const rm = document.createElement('button'); rm.className = 'btn btn-text btn-sm'; rm.textContent = 'Remove';
+  rm.addEventListener('click', async ()=>{ if(!window.confirm('Remove this lead?')) return; try{ await api('DELETE','/leads/' + l.id); await loadLeads(); }catch(e){ showToast(e.message); } });
+  [st, notes, open, rm].forEach(x=>foot.appendChild(x));
+  card.appendChild(foot);
+  return card;
 }
 
 /* ---------- sample-data notices ---------- */

@@ -41,6 +41,9 @@ alter table businesses add column if not exists site_text text not null default 
 alter table businesses add column if not exists last_discovery_at timestamptz;
 alter table businesses add column if not exists site_fetched_at timestamptz;
 alter table businesses add column if not exists site_signals text not null default '';
+alter table businesses add column if not exists icp text not null default '';
+alter table businesses add column if not exists icp_ai boolean not null default false;
+alter table businesses add column if not exists last_prospect_at timestamptz;
 alter table businesses add column if not exists channel_advice text not null default '';
 alter table businesses add column if not exists channel_advice_ai boolean not null default false;
 alter table businesses add column if not exists channel_advice_at timestamptz;
@@ -103,6 +106,28 @@ create table if not exists reports (
   created_at timestamptz not null default now()
 );
 create index if not exists reports_user_idx on reports(user_id, id desc);
+create table if not exists leads (
+  id uuid primary key,
+  user_id uuid not null references users(id) on delete cascade,
+  kind text not null,
+  name text not null,
+  url text not null,
+  domain text not null default '',
+  market text not null default '',
+  why text not null default '',
+  evidence text not null default '',
+  signals text not null default '{}',
+  score integer not null default 0,
+  intent text not null default 'low',
+  verified boolean not null default false,
+  message text not null default '',
+  channel text not null default '',
+  status text not null default 'new',
+  notes text not null default '',
+  created_at timestamptz not null default now()
+);
+create unique index if not exists leads_user_url_idx on leads(user_id, url);
+create index if not exists leads_user_idx on leads(user_id, score desc);
 create table if not exists whatsapp_log (
   id bigserial primary key,
   user_id uuid references users(id) on delete set null,

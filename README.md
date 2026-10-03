@@ -32,6 +32,14 @@ With an AI key the assistant has a real tool, `create_campaign_draft`. It calls 
 language (including Arabic written in Latin letters, "meta" = Instagram + Facebook); the server creates or reuses the draft and returns
 the result to the model, so the reply always matches reality. Without a key a rule-based fallback handles the common phrasings.
 
+## New customers (prospecting)
+The Customers page builds an ideal-customer profile, then (once per 24h per user, cheaper search model) asks the AI to search the public web for
+(a) businesses that need or could refer the offer and (b) public posts where someone says they are looking for it. Safeguards: results must
+be real URLs (links are fetched with the SSRF-safe client; dead links dropped, unreachable ones marked unverified); emails, phone numbers and
+@handles are stripped; private people are never named ("Public post on <site>"); the intent score is computed in code from yes/no evidence
+flags (asked for it, date/urgency, budget, in market, clear need). Nothing is sent automatically: the owner writes to each lead manually,
+because WhatsApp and email rules require consent. Do not add bulk sending to this list.
+
 ## Deploy (Dokploy)
 Compose path `./docker-compose.yml`; put the variables from `.env.example` in the Environment tab
 (`DB_PASSWORD` is required). Domains tab: service `web`, port `3000`.

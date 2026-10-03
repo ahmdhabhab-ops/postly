@@ -24,6 +24,7 @@ export function siteSignals(html, url = '') {
 // Why a fetch failed, without claiming the site is down when we were merely blocked.
 export function classifyFetchError(e) {
   const m = String(e?.message || '');
+  if (/returned (404|410)/i.test(m)) return 'gone';
   if (/returned (401|403|429)|Not an HTML/i.test(m)) return 'blocked';
   if (/returned 5\d\d/i.test(m)) return 'error';
   if (/ENOTFOUND|EAI_AGAIN/i.test(m) || e?.code === 'ENOTFOUND') return 'dns';
